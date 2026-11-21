@@ -28,8 +28,8 @@ public class RequerimientoDetalleEntity {
     @JoinColumn(name = "articulo_id", nullable = false)
     private InventarioEntity articulo;
 
-    @Column(name = "sku_asignado", length = 50)
-    private String skuAsignado; 
+    @Column(name = "sku_asignado", columnDefinition = "TEXT")
+private String skuAsignado;
 
     @Column(name = "cantidad_solicitada", nullable = false, precision = 10, scale = 2)
     private BigDecimal cantidadSolicitada;
@@ -49,4 +49,8 @@ private String unidadMedida;
 
     @Column(name = "sustento", length = 255)
     private String sustento;
+
+    @Builder.Default
+@Column(name = "devuelto", nullable = false)
+private Boolean devuelto = false;
 }

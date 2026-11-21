@@ -25,12 +25,12 @@ public class HistorialInventarioEntity extends AuditoriaBase {
     @JoinColumn(name = "articulo_id", nullable = false)
     private InventarioEntity articulo;
 
-    @Column(name = "sku_asignado", length = 50)
+    @Column(name = "sku_asignado", columnDefinition = "TEXT")
     private String skuAsignado;
 
     @Enumerated(EnumType.STRING)
-@Column(name = "tipo", length = 20, nullable = false)
-private TipoMovimiento tipo;
+    @Column(name = "tipo", length = 20, nullable = false)
+    private TipoMovimiento tipo;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal cantidad;
@@ -60,7 +60,7 @@ private TipoMovimiento tipo;
     private String usuarioRegistra;
 
     public enum TipoMovimiento {
-        ENTRADA, SALIDA, PRESTAMO,  
-    DEVOLUCION
+        ENTRADA, SALIDA, PRESTAMO,
+        DEVOLUCION
     }
 }

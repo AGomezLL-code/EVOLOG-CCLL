@@ -40,7 +40,7 @@ public class JwtService {
     }
 
     public String extraerUsername(String token) {
-        return extraerClaim(token, Claims::getSubject);
+        return extraerClaim(token, claims -> claims.getSubject());
     }
 
     public boolean esTokenValido(String token, UserDetails userDetails) {
@@ -49,7 +49,7 @@ public class JwtService {
     }
 
     private boolean estaTokenExpirado(String token) {
-        return extraerClaim(token, Claims::getExpiration).before(new Date());
+        return extraerClaim(token, claims -> claims.getExpiration()).before(new Date());
     }
 
     public <T> T extraerClaim(String token, Function<Claims, T> claimsResolver) {

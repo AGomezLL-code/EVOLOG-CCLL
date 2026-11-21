@@ -17,9 +17,11 @@ export interface DetalleRequerimientoResponse {
   articuloId: number;
   articuloCodigo: string;
   articuloDescripcion: string;
-  skuAsignado?: string; // <--- NUEVO CAMPO (Muestra el SKU si es préstamo o "-" si no aplica)
+  skuAsignado: string;
   cantidadSolicitada: number;
   cantidadAtendida: number;
+  devuelto?: boolean;
+  stockDisponible?: number;
   caracteristicas?: string;
   sustento?: string;
 }

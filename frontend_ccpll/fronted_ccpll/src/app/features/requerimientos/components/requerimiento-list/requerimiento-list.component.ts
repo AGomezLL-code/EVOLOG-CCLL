@@ -259,7 +259,7 @@ export class RequerimientoListComponent implements OnInit {
     });
   }
 
-  // --- LÓGICA DE DEVOLUCIÓN DE EQUIPOS EN PRÉSTAMO ---
+  // --- LÓGICA DE DEVOLUCIÓN DE EQUIPOS EN PRÉSTAMO (ÍTEM POR ÍTEM EN CUALQUIER ORDEN) ---
   abrirModalDevolucion(req: RequerimientoResponse, detalle: DetalleRequerimientoResponse): void {
     const usuario = this.authService.getSesion();
     this.requerimientoSeleccionado = req;
@@ -286,12 +286,21 @@ export class RequerimientoListComponent implements OnInit {
       observaciones: this.formDevolucion.value.observaciones
     };
 
+    const nombreItemDevuelto = this.detalleParaDevolucion.articuloDescripcion;
+
     this.reqService.registrarDevolucion(dto).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Devolución Procesada', detail: `El activo con SKU ${dto.sku || ''} ha retornado al inventario como DISPONIBLE.` });
+      next: (reqActualizado) => {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Ítem Devuelto',
+          detail: `${nombreItemDevuelto} retornado al inventario como DISPONIBLE.`
+        });
         this.displayDialogDevolucion = false;
-        this.displayDialogDetalle = false;
+        this.detalleParaDevolucion = null;
+        // Actualiza el modal de detalle sin cerrarlo para poder devolver los demás ítems
+        this.requerimientoSeleccionado = reqActualizado;
         this.cargarRequerimientos();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Error al procesar la devolución.' });

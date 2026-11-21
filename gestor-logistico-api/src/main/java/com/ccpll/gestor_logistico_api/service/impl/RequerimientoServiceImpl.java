@@ -209,74 +209,87 @@ public RequerimientoResponseDTO cambiarEstado(Integer id, EstadoRequerimiento nu
     return mapToDTO(actualizado);
 }
     // REGISTRO DE DEVOLUCIÓN DE EQUIPOS/LAPTOPS EN PRÉSTAMO
-    @Override
-@Transactional
-public RequerimientoResponseDTO registrarDevolucionActivo(DevolucionActivoRequestDTO dto) {
-    RequerimientoDetalleEntity detalle = detalleRepository.findById(dto.getRequerimientoDetalleId())
-            .orElseThrow(() -> new RuntimeException("Detalle de requerimiento no encontrado"));
+@Override
+    @Transactional
+    public RequerimientoResponseDTO registrarDevolucionActivo(DevolucionActivoRequestDTO dto) {
+        RequerimientoDetalleEntity detalle = detalleRepository.findById(dto.getRequerimientoDetalleId())
+                .orElseThrow(() -> new RuntimeException("Detalle de requerimiento no encontrado"));
 
-    InventarioEntity producto = detalle.getArticulo();
-    String skuDevuelto = (dto.getSku() != null && !dto.getSku().isBlank()) ? dto.getSku() : detalle.getSkuAsignado();
+        if (Boolean.TRUE.equals(detalle.getDevuelto())) {
+            throw new IllegalStateException("Este ítem ya fue devuelto anteriormente.");
+        }
 
-    if (skuDevuelto == null || skuDevuelto.isBlank() || skuDevuelto.equals("-")) {
-        throw new IllegalArgumentException("No se ha especificado ningún SKU válido para la devolución.");
+        InventarioEntity producto = detalle.getArticulo();
+        String skuDevuelto = (dto.getSku() != null && !dto.getSku().isBlank()) ? dto.getSku() : detalle.getSkuAsignado();
+
+        if (skuDevuelto == null || skuDevuelto.isBlank() || skuDevuelto.equals("-")) {
+            throw new IllegalArgumentException("No se ha especificado ningún SKU válido para la devolución.");
+        }
+
+        // 1. Separar la lista de SKUs de este detalle y pasarlos a DISPONIBLE
+        List<String> skusList = Arrays.stream(skuDevuelto.split(","))
+                .map(s -> s.trim())
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+
+        for (String skuSingle : skusList) {
+            ActivoSerieEntity activoSerie = activoSerieRepository.findBySku(skuSingle)
+                    .orElseThrow(() -> new RuntimeException("Serie/SKU no encontrado: " + skuSingle));
+            activoSerie.setEstado(ActivoSerieEntity.EstadoActivo.DISPONIBLE);
+            activoSerieRepository.save(activoSerie);
+        }
+
+        // 2. Recalcular stock actual de forma exacta según series disponibles en BD
+        BigDecimal stockAnt = producto.getStockActual();
+        if (Boolean.TRUE.equals(producto.getRequiereSku())) {
+            long seriesDisponiblesCount = activoSerieRepository.countByProductoIdAndEstado(
+                    producto.getId(), ActivoSerieEntity.EstadoActivo.DISPONIBLE);
+            producto.setStockActual(BigDecimal.valueOf(seriesDisponiblesCount));
+        } else {
+            producto.setStockActual(stockAnt.add(detalle.getCantidadSolicitada()));
+        }
+        inventarioRepository.save(producto);
+
+        // 3. Registrar movimiento DEVOLUCIÓN en Kardex
+        HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
+                .articulo(producto)
+                .skuAsignado(skuDevuelto)
+                .tipo(HistorialInventarioEntity.TipoMovimiento.DEVOLUCION)
+                .cantidad(BigDecimal.valueOf(skusList.size()))
+                .costoUnitario(producto.getCostoPromedio())
+                .subtotal(BigDecimal.valueOf(skusList.size()).multiply(producto.getCostoPromedio()))
+                .fecha(LocalDate.now())
+                .proveedorCliente(detalle.getRequerimiento().getSolicitante())
+                .area(detalle.getRequerimiento().getAreaSolicitante())
+                .stockAnterior(stockAnt)
+                .stockNuevo(producto.getStockActual())
+                .usuarioRegistra(dto.getUsuarioRecibe())
+                .build();
+        historialRepository.save(historial);
+
+        // 4. Marcar SOLO este detalle como devuelto
+        detalle.setDevuelto(true);
+        detalleRepository.saveAndFlush(detalle);
+
+        // 5. Verificar si TODOS los ítems con SKU de este requerimiento ya fueron devueltos
+        RequerimientoEntity req = detalle.getRequerimiento();
+        boolean todosDevueltos = req.getDetalles().stream()
+                .filter(d -> d.getSkuAsignado() != null && !d.getSkuAsignado().isBlank() && !d.getSkuAsignado().equals("-"))
+                .allMatch(d -> Boolean.TRUE.equals(d.getDevuelto()));
+
+        if (todosDevueltos) {
+            req.setEstado(EstadoRequerimiento.DEVUELTO);
+        }
+
+        auditoriaService.registrar(
+                "DEVOLUCION_ACTIVO",
+                "Requerimiento",
+                dto.getRequerimientoId(),
+                "Retorno de " + producto.getDescripcion() + " (" + skusList.size() + " und) recibido por " + dto.getUsuarioRecibe()
+        );
+
+        return mapToDTO(requerimientoRepository.save(req));
     }
-
-    // 1. Separar la lista de SKUs si fueron prestados múltiples (ej: "SKU-0001, SKU-0002")
-    List<String> skusList = Arrays.stream(skuDevuelto.split(","))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(Collectors.toList());
-
-    for (String skuSingle : skusList) {
-        ActivoSerieEntity activoSerie = activoSerieRepository.findBySku(skuSingle)
-                .orElseThrow(() -> new RuntimeException("Serie/SKU no encontrado: " + skuSingle));
-        activoSerie.setEstado(ActivoSerieEntity.EstadoActivo.DISPONIBLE);
-        activoSerieRepository.save(activoSerie);
-    }
-
-    // 2. RECALCULAR STOCK ACTUAL DE FORMA EXACTA SEGÚN SERIES DISPONIBLES EN BD
-    BigDecimal stockAnt = producto.getStockActual();
-    
-    if (Boolean.TRUE.equals(producto.getRequiereSku())) {
-        long seriesDisponiblesCount = activoSerieRepository.countByProductoIdAndEstado(
-                producto.getId(), ActivoSerieEntity.EstadoActivo.DISPONIBLE);
-        producto.setStockActual(BigDecimal.valueOf(seriesDisponiblesCount));
-    } else {
-        producto.setStockActual(stockAnt.add(detalle.getCantidadSolicitada()));
-    }
-    
-    inventarioRepository.save(producto);
-
-    // 3. Registrar movimiento DEVOLUCIÓN en Kardex
-    HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
-            .articulo(producto)
-            .skuAsignado(skuDevuelto)
-            .tipo(HistorialInventarioEntity.TipoMovimiento.DEVOLUCION)
-            .cantidad(BigDecimal.valueOf(skusList.size()))
-            .costoUnitario(producto.getCostoPromedio())
-            .subtotal(BigDecimal.valueOf(skusList.size()).multiply(producto.getCostoPromedio()))
-            .fecha(LocalDate.now())
-            .proveedorCliente(detalle.getRequerimiento().getSolicitante())
-            .area(detalle.getRequerimiento().getAreaSolicitante())
-            .stockAnterior(stockAnt)
-            .stockNuevo(producto.getStockActual())
-            .usuarioRegistra(dto.getUsuarioRecibe())
-            .build();
-    historialRepository.save(historial);
-
-    RequerimientoEntity req = detalle.getRequerimiento();
-    req.setEstado(EstadoRequerimiento.DEVUELTO);
-
-    auditoriaService.registrar(
-    "DEVOLUCION_ACTIVO",
-    "Requerimiento",
-    dto.getRequerimientoId(),
-    "Retorno de activo SKU " + dto.getSku() + " recibido por " + dto.getUsuarioRecibe()
-);
-    
-    return mapToDTO(requerimientoRepository.save(req));
-}
 
     private String generarCodigoRequerimiento() {
         long count = requerimientoRepository.count() + 1;
@@ -312,29 +325,29 @@ public RequerimientoResponseDTO registrarDevolucionActivo(DevolucionActivoReques
                 .build();
     }
 
-    private RequerimientoResponseDTO.DetalleResponseDTO mapDetalleToDTO(RequerimientoDetalleEntity d) {
-    Integer detalleId = (d.getId() != null) ? d.getId().intValue() : null;
-    Integer articuloId = (d.getArticulo() != null && d.getArticulo().getId() != null) 
-            ? d.getArticulo().getId().intValue() 
-            : null;
-    
-    String articuloCodigo = (d.getArticulo() != null) ? d.getArticulo().getCodigo() : null;
-    String articuloDescripcion = (d.getArticulo() != null) ? d.getArticulo().getDescripcion() : null;
-    BigDecimal stockActual = (d.getArticulo() != null) ? d.getArticulo().getStockActual() : BigDecimal.ZERO;
+   private RequerimientoResponseDTO.DetalleResponseDTO mapDetalleToDTO(RequerimientoDetalleEntity d) {
+        Integer detalleId = (d.getId() != null) ? d.getId().intValue() : null;
+        Integer articuloId = (d.getArticulo() != null && d.getArticulo().getId() != null)
+                ? d.getArticulo().getId().intValue()
+                : null;
 
-    return RequerimientoResponseDTO.DetalleResponseDTO.builder()
-            .id(detalleId)
-            .articuloId(articuloId)
-            .articuloCodigo(articuloCodigo)
-            .articuloDescripcion(articuloDescripcion)
-            .skuAsignado(d.getSkuAsignado() != null ? d.getSkuAsignado() : "-")
-            .cantidadSolicitada(d.getCantidadSolicitada())
-            .cantidadAtendida(d.getCantidadAtendida())
-            .stockDisponible(stockActual) // <--- MAPEAR STOCK EN ALMACÉN
-            .caracteristicas(d.getCaracteristicas())
-            .sustento(d.getSustento())
-            .build();
-}
+        String articuloCodigo = (d.getArticulo() != null) ? d.getArticulo().getCodigo() : null;
+        String articuloDescripcion = (d.getArticulo() != null) ? d.getArticulo().getDescripcion() : null;
+        BigDecimal stockActual = (d.getArticulo() != null) ? d.getArticulo().getStockActual() : BigDecimal.ZERO;
 
+        return RequerimientoResponseDTO.DetalleResponseDTO.builder()
+                .id(detalleId)
+                .articuloId(articuloId)
+                .articuloCodigo(articuloCodigo)
+                .articuloDescripcion(articuloDescripcion)
+                .skuAsignado(d.getSkuAsignado() != null ? d.getSkuAsignado() : "-")
+                .cantidadSolicitada(d.getCantidadSolicitada())
+                .cantidadAtendida(d.getCantidadAtendida())
+                .devuelto(Boolean.TRUE.equals(d.getDevuelto()))
+                .stockDisponible(stockActual)
+                .caracteristicas(d.getCaracteristicas())
+                .sustento(d.getSustento())
+                .build();
+    }
 
 }

@@ -151,12 +151,12 @@
   </form>
 </p-dialog>
 
-<!-- MODAL DETALLE DE REQUERIMIENTO CON INDICADOR DE STOCK ALMACÉN -->
+<!-- MODAL DETALLE DE REQUERIMIENTO CON DEVOLUCIÓN ÍTEM POR ÍTEM -->
 <p-dialog 
   [header]="'Detalle Requerimiento - ' + (requerimientoSeleccionado?.codigo || '')" 
   [(visible)]="displayDialogDetalle" 
   [modal]="true" 
-  [style]="{width: '800px'}" 
+  [style]="{width: '850px'}" 
   appendTo="body">
 
   <div *ngIf="requerimientoSeleccionado" class="flex flex-col gap-4 mt-2">
@@ -179,7 +179,7 @@
       <strong>Observación:</strong> {{ requerimientoSeleccionado.observacion }}
     </div>
 
-    <!-- TABLA DE DETALLES CON COLUMNA DE STOCK ALMACÉN -->
+    <!-- TABLA DE DETALLES CON COLUMNA DE STOCK ALMACÉN Y ESTADO DE DEVOLUCIÓN -->
     <p-table [value]="requerimientoSeleccionado.detalles" styleClass="p-datatable-sm p-datatable-gridlines">
       <ng-template pTemplate="header">
         <tr class="bg-slate-100 text-slate-800">
@@ -189,7 +189,7 @@
           <th class="p-2 text-center">Stock Almacén</th>
           <th class="p-2 text-right">Cant. Sol.</th>
           <th class="p-2 text-right">Cant. Atend.</th>
-          <th class="p-2 text-center" *ngIf="requerimientoSeleccionado.estado === 'ENTREGADO' && puedeProcesarDevolucion()">Devolución</th>
+          <th class="p-2 text-center" *ngIf="(requerimientoSeleccionado.estado === 'ENTREGADO' || requerimientoSeleccionado.estado === 'DEVUELTO') && puedeProcesarDevolucion()">Devolución</th>
         </tr>
       </ng-template>
 
@@ -219,17 +219,24 @@
           <td class="p-2 text-right font-medium">{{ det.cantidadSolicitada }}</td>
           <td class="p-2 text-right font-bold text-emerald-600">{{ det.cantidadAtendida || 0 }}</td>
           
-          <!-- BOTÓN PARA REGISTRAR DEVOLUCIÓN (Solo personal de logística/almacén) -->
-          <td class="p-2 text-center" *ngIf="requerimientoSeleccionado.estado === 'ENTREGADO' && puedeProcesarDevolucion()">
-            <button 
-              *ngIf="det.skuAsignado && det.skuAsignado !== '-'"
-              pButton 
-              type="button" 
-              icon="pi pi-undo" 
-              label="Devolver" 
-              class="p-button-sm p-button-outlined p-button-warning"
-              (click)="abrirModalDevolucion(requerimientoSeleccionado, det)">
-            </button>
+          <!-- COLUMNA DE DEVOLUCIÓN ÍTEM POR ÍTEM -->
+          <td class="p-2 text-center whitespace-nowrap" *ngIf="(requerimientoSeleccionado.estado === 'ENTREGADO' || requerimientoSeleccionado.estado === 'DEVUELTO') && puedeProcesarDevolucion()">
+            <ng-container *ngIf="det.skuAsignado && det.skuAsignado !== '-'">
+              <button 
+                *ngIf="!det.devuelto && requerimientoSeleccionado.estado === 'ENTREGADO'"
+                pButton 
+                type="button" 
+                icon="pi pi-undo" 
+                label="Devolver" 
+                class="p-button-sm p-button-outlined p-button-warning"
+                (click)="abrirModalDevolucion(requerimientoSeleccionado, det)">
+              </button>
+
+              <span *ngIf="det.devuelto" class="px-2 py-1 text-xs font-bold rounded bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                <i class="pi pi-check-circle"></i> Devuelto
+              </span>
+            </ng-container>
+            <span *ngIf="!det.skuAsignado || det.skuAsignado === '-'" class="text-slate-400 text-xs">No retornable</span>
           </td>
         </tr>
       </ng-template>
@@ -246,13 +253,13 @@
   header="Registrar Devolución de Activo" 
   [(visible)]="displayDialogDevolucion" 
   [modal]="true" 
-  [style]="{width: '420px'}" 
+  [style]="{width: '440px'}" 
   appendTo="body">
 
   <div *ngIf="detalleParaDevolucion" class="mb-3 bg-amber-50 p-3 rounded-lg border border-amber-200 text-sm">
-    <p class="font-semibold text-amber-900">Equipo a Retornar:</p>
-    <p class="text-amber-800">{{ detalleParaDevolucion.articuloDescripcion }}</p>
-    <p class="font-mono font-bold text-amber-900 mt-1">SKU: {{ detalleParaDevolucion.skuAsignado }}</p>
+    <p class="font-semibold text-amber-900">Ítem a Retornar ({{ detalleParaDevolucion.cantidadAtendida }} UND):</p>
+    <p class="text-amber-800 font-medium">{{ detalleParaDevolucion.articuloDescripcion }}</p>
+    <p class="font-mono text-xs font-bold text-amber-900 mt-1 max-h-24 overflow-y-auto whitespace-pre-line">SKU: {{ detalleParaDevolucion.skuAsignado }}</p>
   </div>
 
   <form [formGroup]="formDevolucion" (ngSubmit)="procesarDevolucion()" class="flex flex-col gap-4 mt-2">

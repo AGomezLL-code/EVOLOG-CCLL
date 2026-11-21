@@ -6,7 +6,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "auditoria")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AuditoriaEntity {
 
     @Id
@@ -14,9 +18,10 @@ public class AuditoriaEntity {
     private Integer id;
 
     @Column(nullable = false, length = 50)
-    private String accion; // LOGIN, CREAR_REQUERIMIENTO, APROBAR, DESPACHAR, RECHAZAR, DEVOLUCION, ENTRADA_STOCK
+    private String accion; // LOGIN, CREAR_REQUERIMIENTO, APROBAR, DESPACHAR, RECHAZAR, DEVOLUCION,
+                           // ENTRADA_STOCK
 
-    @Column(nullable = false, length = 500)
+    @Column(name = "detalle", columnDefinition = "TEXT")
     private String detalle;
 
     @Column(nullable = false, length = 60)
