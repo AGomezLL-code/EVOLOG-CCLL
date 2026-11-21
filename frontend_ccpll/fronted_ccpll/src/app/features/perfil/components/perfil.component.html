@@ -1,0 +1,255 @@
+<p-toast position="top-right"></p-toast>
+
+<div style="max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem;">
+
+  <!-- ===== ENCABEZADO DE PÁGINA CON AVATAR EDITABLE ===== -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0;">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <div style="position: relative; width: 64px; height: 64px;">
+        <img *ngIf="perfil?.fotoUrl as foto"
+             [src]="foto"
+             alt="Foto de perfil"
+             style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #d4af37; box-shadow: 0 2px 6px rgba(0,0,0,0.2);" />
+        <div *ngIf="!perfil?.fotoUrl"
+             style="background: linear-gradient(135deg, #4a121f, #6d1b2e); border: 2px solid #d4af37; color: white;
+                    font-weight: 700; font-size: 1.3rem; width: 64px; height: 64px; border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+          {{ iniciales }}
+        </div>
+        <button type="button"
+                (click)="fileInput.click()"
+                title="Cambiar foto de perfil"
+                style="position: absolute; bottom: -2px; right: -2px; width: 24px; height: 24px; border-radius: 50%;
+                       background: #4a121f; color: #d4af37; border: 1.5px solid #ffffff; cursor: pointer;
+                       display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">
+          <i class="pi pi-camera"></i>
+        </button>
+      </div>
+
+      <div>
+        <h2 style="margin: 0; color: #2b0811; font-size: 1.25rem; font-weight: 700;">Mi Perfil</h2>
+        <p style="margin: 0; color: #64748b; font-size: 0.8rem;">
+          Configuración de cuenta · <span style="color: #7c2d3e; font-weight: 600;">{{ rolLegible }}</span>
+        </p>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <input #fileInput type="file" accept="image/*" (change)="onSeleccionarFoto($event)" style="display: none;" />
+      <button pButton type="button"
+              label="Subir foto"
+              icon="pi pi-upload"
+              class="p-button-outlined p-button-sm"
+              [loading]="subiendoFoto"
+              (click)="fileInput.click()"
+              style="color: #4a121f; border-color: #4a121f;">
+      </button>
+      <button *ngIf="perfil?.fotoUrl"
+              pButton type="button"
+              icon="pi pi-trash"
+              title="Quitar foto"
+              class="p-button-text p-button-danger p-button-sm"
+              (click)="guardarFoto(null)">
+      </button>
+    </div>
+  </div>
+
+  <!-- Spinner de carga inicial -->
+  <div *ngIf="cargando" style="text-align: center; padding: 3rem; color: #64748b;">
+    <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #4a121f;"></i>
+    <p style="margin-top: 0.75rem;">Cargando perfil...</p>
+  </div>
+
+  <ng-container *ngIf="!cargando">
+
+    <!-- ===== TARJETA: INFORMACIÓN DE CUENTA (sólo lectura) ===== -->
+    <div *ngIf="perfil as p" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+      <div style="background: linear-gradient(135deg, #2b0811, #4a121f); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.6rem;">
+        <i class="pi pi-id-card" style="color: #d4af37; font-size: 1rem;"></i>
+        <span style="color: #ffffff; font-weight: 700; font-size: 0.95rem;">Información de cuenta</span>
+      </div>
+      <div style="padding: 1.25rem 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">
+            Usuario
+          </label>
+          <div style="font-size: 0.9rem; color: #1e293b; font-weight: 600; padding: 0.5rem 0.75rem;
+                      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            {{ p.username || '—' }}
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">
+            Rol asignado
+          </label>
+          <div style="font-size: 0.9rem; padding: 0.5rem 0.75rem; background: #fff7ed;
+                      border: 1px solid #fed7aa; border-radius: 6px; color: #9a3412; font-weight: 600;">
+            {{ rolLegible }}
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">
+            Estado
+          </label>
+          <div style="font-size: 0.9rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-weight: 600;"
+               [ngStyle]="p.activo
+                 ? { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }
+                 : { background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }">
+            <i [class]="p.activo ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+            {{ p.activo ? 'Activo' : 'Inactivo' }}
+          </div>
+        </div>
+        <div *ngIf="p.fechaCreacion">
+          <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">
+            Miembro desde
+          </label>
+          <div style="font-size: 0.9rem; color: #1e293b; padding: 0.5rem 0.75rem;
+                      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+            {{ p.fechaCreacion | date:'dd/MM/yyyy' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TARJETA: DATOS PERSONALES (editable) ===== -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+      <div style="background: linear-gradient(135deg, #2b0811, #4a121f); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.6rem;">
+        <i class="pi pi-user-edit" style="color: #d4af37; font-size: 1rem;"></i>
+        <span style="color: #ffffff; font-weight: 700; font-size: 0.95rem;">Datos personales</span>
+      </div>
+      <div style="padding: 1.5rem;">
+        <form [formGroup]="formPerfil" (ngSubmit)="onGuardarPerfil()" style="display: flex; flex-direction: column; gap: 1.1rem;">
+
+          <!-- Nombre completo -->
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem;">
+              Nombre completo <span style="color: #dc2626;">*</span>
+            </label>
+            <input pInputText
+                   formControlName="nombreCompleto"
+                   placeholder="Ej: Juan Carlos Pérez López"
+                   style="width: 100%; border-radius: 6px;"
+                   [class.ng-invalid]="campoInvalido(formPerfil, 'nombreCompleto')"
+                   [class.ng-dirty]="campoInvalido(formPerfil, 'nombreCompleto')" />
+            <small *ngIf="campoInvalido(formPerfil, 'nombreCompleto')" style="color: #dc2626; font-size: 0.75rem;">
+              El nombre completo es obligatorio (máx. 100 caracteres).
+            </small>
+          </div>
+
+          <!-- Área -->
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem;">
+              Área / Departamento <span style="color: #dc2626;">*</span>
+            </label>
+            <input pInputText
+                   formControlName="area"
+                   placeholder="Ej: Logística, Administración, Comercial"
+                   style="width: 100%; border-radius: 6px;"
+                   [class.ng-invalid]="campoInvalido(formPerfil, 'area')"
+                   [class.ng-dirty]="campoInvalido(formPerfil, 'area')" />
+            <small *ngIf="campoInvalido(formPerfil, 'area')" style="color: #dc2626; font-size: 0.75rem;">
+              El área es obligatoria (máx. 80 caracteres).
+            </small>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button pButton type="submit"
+                    label="Guardar cambios"
+                    icon="pi pi-save"
+                    [loading]="guardando"
+                    style="background: #4a121f; border-color: #4a121f;">
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ===== TARJETA: CAMBIAR CONTRASEÑA ===== -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+      <div style="background: linear-gradient(135deg, #2b0811, #4a121f); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.6rem;">
+        <i class="pi pi-lock" style="color: #d4af37; font-size: 1rem;"></i>
+        <span style="color: #ffffff; font-weight: 700; font-size: 0.95rem;">Cambiar contraseña</span>
+      </div>
+      <div style="padding: 1.5rem;">
+        <form [formGroup]="formPassword" (ngSubmit)="onCambiarPassword()" style="display: flex; flex-direction: column; gap: 1.1rem;">
+
+          <!-- Contraseña actual -->
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem;">
+              Contraseña actual <span style="color: #dc2626;">*</span>
+            </label>
+            <input pInputText
+                   type="password"
+                   formControlName="passwordActual"
+                   placeholder="Ingresa tu contraseña actual"
+                   style="width: 100%; border-radius: 6px;"
+                   [class.ng-invalid]="campoInvalido(formPassword, 'passwordActual')"
+                   [class.ng-dirty]="campoInvalido(formPassword, 'passwordActual')" />
+            <small *ngIf="campoInvalido(formPassword, 'passwordActual')" style="color: #dc2626; font-size: 0.75rem;">
+              Debes ingresar tu contraseña actual.
+            </small>
+          </div>
+
+          <!-- Nueva contraseña -->
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem;">
+              Nueva contraseña <span style="color: #dc2626;">*</span>
+            </label>
+            <input pInputText
+                   type="password"
+                   formControlName="passwordNuevo"
+                   placeholder="Más de 10 caracteres, mayúsculas, números y símbolos"
+                   style="width: 100%; border-radius: 6px;"
+                   [class.ng-invalid]="campoInvalido(formPassword, 'passwordNuevo')"
+                   [class.ng-dirty]="campoInvalido(formPassword, 'passwordNuevo')" />
+
+            <!-- Checklist interactivo de seguridad -->
+            <div style="margin-top: 0.6rem; padding: 0.75rem 1rem; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.75rem; display: flex; flex-direction: column; gap: 0.35rem;">
+              <div style="font-weight: 700; color: #334155; margin-bottom: 0.15rem;">
+                Requisitos de seguridad de la contraseña:
+              </div>
+              <div [style.color]="requisitosPassword.longitudMayor10 ? '#15803d' : '#64748b'"
+                   [style.font-weight]="requisitosPassword.longitudMayor10 ? '600' : '400'">
+                <i class="pi" [ngClass]="requisitosPassword.longitudMayor10 ? 'pi-check-circle' : 'pi-circle'" style="margin-right: 0.35rem;"></i>
+                Más de 10 caracteres (mínimo 11)
+              </div>
+              <div [style.color]="requisitosPassword.tieneEspecial ? '#15803d' : '#64748b'"
+                   [style.font-weight]="requisitosPassword.tieneEspecial ? '600' : '400'">
+                <i class="pi" [ngClass]="requisitosPassword.tieneEspecial ? 'pi-check-circle' : 'pi-circle'" style="margin-right: 0.35rem;"></i>
+                Al menos un carácter especial (!&#64;#$%^&amp;*._-)
+              </div>
+              <div [style.color]="requisitosPassword.tieneMayusculaYNumero ? '#15803d' : '#64748b'"
+                   [style.font-weight]="requisitosPassword.tieneMayusculaYNumero ? '600' : '400'">
+                <i class="pi" [ngClass]="requisitosPassword.tieneMayusculaYNumero ? 'pi-check-circle' : 'pi-circle'" style="margin-right: 0.35rem;"></i>
+                Al menos una letra mayúscula y un número
+              </div>
+              <div [style.color]="requisitosPassword.sinDatosPersonales ? '#15803d' : '#dc2626'"
+                   [style.font-weight]="'600'">
+                <i class="pi" [ngClass]="requisitosPassword.sinDatosPersonales ? 'pi-check-circle' : 'pi-times-circle'" style="margin-right: 0.35rem;"></i>
+                No contener nombres personales, usuario, área ni cargo
+              </div>
+            </div>
+
+            <small *ngIf="campoInvalido(formPassword, 'passwordNuevo')" style="display: block; margin-top: 0.35rem; color: #dc2626; font-size: 0.75rem;">
+              La contraseña no cumple con todos los requisitos de seguridad indicados arriba.
+            </small>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button pButton type="submit"
+                    label="Cambiar contraseña"
+                    icon="pi pi-shield"
+                    [disabled]="formPassword.invalid || cambiandoPwd"
+                    [loading]="cambiandoPwd"
+                    style="background: #4a121f; border-color: #4a121f;">
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </ng-container>
+</div>

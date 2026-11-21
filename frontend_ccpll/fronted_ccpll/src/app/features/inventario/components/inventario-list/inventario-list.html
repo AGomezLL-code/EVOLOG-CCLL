@@ -1,0 +1,434 @@
+<p-toast></p-toast>
+
+<div class="p-6 bg-slate-100 min-h-screen text-slate-900">
+  <!-- ENCABEZADO -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">
+        {{ esSoloConsulta ? 'Catálogo Disponible en Almacén' : 'Gestión de Inventario' }}
+      </h1>
+      <p class="text-slate-500 text-sm">
+        {{ esSoloConsulta
+        ? 'Consulta en tiempo real de stock disponible para solicitudes y eventos'
+        : 'Control de stock, trazabilidad por SKU y kardex en tiempo real' }}
+      </p>
+    </div>
+
+    <!-- Botones ocultos para CLIENTE_INTERNO y AREA_COMERCIAL -->
+    <div *ngIf="!esSoloConsulta" class="flex gap-2">
+      <p-button label="Nuevo Producto" icon="pi pi-plus" severity="success" (onClick)="abrirNuevoProducto()"></p-button>
+      <button pButton type="button" icon="pi pi-file-excel" label="Exportar Excel"
+        class="p-button-success p-button-outlined" (click)="exportarExcel()">
+      </button>
+    </div>
+  </div>
+
+  <!-- TARJETAS KPIS -->
+  <div class="grid grid-cols-1 gap-4 mb-6" [ngClass]="esSoloConsulta ? 'md:grid-cols-2' : 'md:grid-cols-3'">
+    <!-- Tarjeta 1: Total Productos -->
+    <div class="bg-white p-5 rounded-xl border border-slate-300 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase text-slate-500 tracking-wider">
+          {{ esSoloConsulta ? 'Artículos en Catálogo' : 'Total Productos' }}
+        </p>
+        <h3 class="text-2xl font-bold text-slate-800 mt-1">{{ productos().length }}</h3>
+      </div>
+      <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+        <i class="pi pi-box text-2xl"></i>
+      </div>
+    </div>
+
+    <!-- Tarjeta 2: Valorización Total (SOLO LOGÍSTICA) -->
+    <div *ngIf="!esSoloConsulta"
+      class="bg-white p-5 rounded-xl border border-slate-300 shadow-sm flex items-center justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase text-slate-500 tracking-wider">Valor Total Inventario</p>
+        <h3 class="text-2xl font-bold text-slate-800 mt-1">S/ {{ resumenKPI().valorTotalInventario | number:'1.2-2' }}
+        </h3>
+      </div>
+      <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+        <i class="pi pi-wallet text-2xl"></i>
+      </div>
+    </div>
+
+    <!-- Tarjeta 3: Alertas Stock Bajo -->
+    <div class="bg-white p-5 rounded-xl border shadow-sm flex items-center justify-between transition-all"
+      [ngClass]="resumenKPI().cantidadStockBajo > 0 ? 'border-red-300 bg-red-50/40' : 'border-slate-300'">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider"
+          [ngClass]="resumenKPI().cantidadStockBajo > 0 ? 'text-red-600' : 'text-slate-500'">
+          Stock Crítico / Bajo
+        </p>
+        <h3 class="text-2xl font-bold mt-1"
+          [ngClass]="resumenKPI().cantidadStockBajo > 0 ? 'text-red-600' : 'text-slate-800'">
+          {{ resumenKPI().cantidadStockBajo }} {{ resumenKPI().cantidadStockBajo === 1 ? 'Producto' : 'Productos' }}
+        </h3>
+      </div>
+      <div class="p-3 rounded-lg"
+        [ngClass]="resumenKPI().cantidadStockBajo > 0 ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'">
+        <i class="pi pi-exclamation-triangle text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA DE PRODUCTOS CON BARRA DE BÚSQUEDA POR DESCRIPCIÓN -->
+  <div class="bg-white rounded-xl shadow-md border border-slate-300 p-4">
+    <!-- BARRA DE BÚSQUEDA -->
+    <div
+      class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4 pb-3 border-b border-slate-200">
+      <div class="relative w-full sm:w-96">
+        <i class="pi pi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input type="text" pInputText [ngModel]="busquedaDescripcion()"
+          (ngModelChange)="busquedaDescripcion.set($event)" placeholder="Buscar producto por descripción o código..."
+          class="w-full !pl-10 !pr-9 !py-2 text-sm !rounded-lg !border-slate-300" />
+        <button *ngIf="busquedaDescripcion()" type="button" (click)="busquedaDescripcion.set('')"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <i class="pi pi-times text-xs"></i>
+        </button>
+      </div>
+
+      <span class="text-xs font-medium text-slate-500">
+        Mostrando <strong>{{ productosFiltrados().length }}</strong> de {{ productos().length }} artículos
+      </span>
+    </div>
+
+    <p-table [value]="productosFiltrados()" [loading]="loading()" [paginator]="true" [rows]="10"
+      responsiveLayout="scroll" styleClass="p-datatable-striped p-datatable-gridlines">
+
+      <ng-template pTemplate="header">
+        <tr class="bg-slate-200 border-b border-slate-300 text-slate-800">
+          <th style="width: 14%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-left font-bold">Código / SKU</th>
+          <th style="width: 24%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-left font-bold">Descripción</th>
+          <th style="width: 15%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-left font-bold">Ubicación Física</th>
+          <th style="width: 15%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-left font-bold">Categoría</th>
+          <th style="width: 10%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-right font-bold">Stock Actual</th>
+          <th *ngIf="!esSoloConsulta"
+            style="width: 10%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-right font-bold">Costo Prom.</th>
+          <th style="width: 10%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-center font-bold">
+            {{ esSoloConsulta ? 'Disponibilidad' : 'Estado Stock' }}
+          </th>
+          <th *ngIf="!esSoloConsulta"
+            style="width: 12%; color: #1e293b !important; background-color: #f1f5f9 !important;"
+            class="p-3 text-center font-bold">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-prod>
+        <tr class="border-b border-slate-200 hover:bg-slate-50 align-middle"
+          style="color: #0f172a !important; background-color: #ffffff !important;">
+          <!-- Código + Badge de SKU -->
+          <td class="p-3 font-semibold whitespace-nowrap">
+            <div class="text-slate-900">{{ prod.codigo }}</div>
+            <span *ngIf="prod.requiereSku && !esSoloConsulta" class="p-tag p-tag-info"
+              style="cursor: pointer; margin-top: 4px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px;"
+              (click)="verSkusProducto(prod)">
+              <i class="pi pi-barcode"></i> Ver SKUs
+            </span>
+            <span *ngIf="prod.requiereSku && esSoloConsulta"
+              class="text-[11px] font-medium text-indigo-600 inline-flex items-center gap-1 mt-0.5">
+              <i class="pi pi-barcode text-[10px]"></i> Equipo seriado
+            </span>
+          </td>
+
+          <!-- Descripción -->
+          <td class="p-3 font-medium">{{ prod.descripcion }}</td>
+
+          <!-- Ubicación Física -->
+          <td class="p-3">
+            <span *ngIf="prod.ubicacionFisica; else sinUbi"
+              class="flex items-center gap-1 text-slate-700 whitespace-nowrap">
+              <i class="pi pi-map-marker text-indigo-600"></i> {{ prod.ubicacionFisica }}
+            </span>
+            <ng-template #sinUbi>
+              <span class="text-slate-400 italic whitespace-nowrap">Almacén General</span>
+            </ng-template>
+          </td>
+
+          <!-- Categoría -->
+          <td class="p-3 uppercase text-xs font-medium text-slate-600">{{ prod.categoriaNombre || 'Sin Categoría' }}
+          </td>
+
+          <!-- Stock Actual -->
+          <td class="p-3 text-right font-bold whitespace-nowrap">{{ prod.stockActual }} {{ prod.unidad }}</td>
+
+          <!-- Costo Promedio (SOLO LOGÍSTICA) -->
+          <td *ngIf="!esSoloConsulta" class="p-3 text-right whitespace-nowrap">S/ {{ prod.costoPromedio | number:'1.2-4'
+            }}</td>
+
+          <!-- Estado Stock / Disponibilidad -->
+          <td class="p-3 text-center whitespace-nowrap">
+            <p-tag
+              [severity]="prod.stockActual <= 0 ? 'danger' : (prod.stockActual <= prod.stockMinimo ? 'warn' : 'success')"
+              [value]="prod.stockActual <= 0 ? 'AGOTADO' : (prod.stockActual <= prod.stockMinimo ? 'BAJO STOCK' : (esSoloConsulta ? 'DISPONIBLE' : 'OK'))">
+            </p-tag>
+          </td>
+
+          <!-- Acciones (SOLO LOGÍSTICA) -->
+          <td *ngIf="!esSoloConsulta" class="p-3 text-center whitespace-nowrap">
+            <div class="flex justify-center gap-1">
+              <p-button icon="pi pi-arrow-down-left" severity="info" [rounded]="true" [text]="true" pTooltip="Entrada"
+                (onClick)="abrirMovimiento(prod, 'ENTRADA')"></p-button>
+              <p-button icon="pi pi-arrow-up-right" severity="warn" [rounded]="true" [text]="true" pTooltip="Salida"
+                (onClick)="abrirMovimiento(prod, 'SALIDA')"></p-button>
+              <p-button icon="pi pi-history" severity="help" [rounded]="true" [text]="true" pTooltip="Ver Kardex"
+                (onClick)="verKardex(prod)"></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td [attr.colspan]="esSoloConsulta ? 6 : 8" class="text-center p-6 text-slate-500 font-medium"
+            style="color: #64748b !important; background-color: #ffffff !important;">
+            {{ busquedaDescripcion()
+            ? 'No se encontraron productos que coincidan con "' + busquedaDescripcion() + '".'
+            : 'No se encontraron productos registrados en la base de datos.' }}
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- MODAL REGISTRAR PRODUCTO -->
+<p-dialog *ngIf="!esSoloConsulta" header="Nuevo Producto" [(visible)]="productoDialog" [modal]="true"
+  [style]="{width: '480px'}" appendTo="body">
+  <form [formGroup]="productoForm" (ngSubmit)="guardarProducto()" class="flex flex-col gap-4 mt-2">
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Código</label>
+      <input type="text" pInputText formControlName="codigo" class="w-full" placeholder="EJ: PROD-001" />
+    </div>
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Descripción</label>
+      <input type="text" pInputText formControlName="descripcion" class="w-full" />
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Ubicación Física en Almacén</label>
+      <input type="text" pInputText formControlName="ubicacionFisica" class="w-full"
+        placeholder="EJ: Almacén TI - Estante A-2" />
+    </div>
+
+    <div class="flex items-center gap-2 py-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+      <p-checkbox formControlName="requiereSku" [binary]="true" inputId="binarySku"></p-checkbox>
+      <label for="binarySku" class="text-sm font-semibold text-slate-700 cursor-pointer">
+        ¿Es un activo con trazabilidad por SKU / N° Serie? (Laptops, Proyectores)
+      </label>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block font-medium mb-1 text-slate-700">Unidad Medida</label>
+        <input type="text" pInputText formControlName="unidad" class="w-full" />
+      </div>
+      <div>
+        <label class="block font-medium mb-1 text-slate-700">Stock Mínimo</label>
+        <p-inputnumber formControlName="stockMinimo" class="w-full"></p-inputnumber>
+      </div>
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Categoría</label>
+      <p-select [options]="categorias()" optionLabel="nombre" optionValue="id" formControlName="categoriaId"
+        placeholder="Seleccione..." appendTo="body" class="w-full" styleClass="w-full">
+
+        <ng-template pTemplate="footer">
+          <div class="p-2 border-t border-slate-200 bg-slate-50">
+            <button pButton type="button" label="+ Agregar Nueva Categoría"
+              class="p-button-text p-button-sm w-full text-left font-semibold text-blue-600"
+              (click)="abrirModalNuevaCategoria()">
+            </button>
+          </div>
+        </ng-template>
+      </p-select>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <p-button label="Cancelar" severity="secondary" (onClick)="productoDialog.set(false)"></p-button>
+      <p-button label="Guardar" type="submit" [disabled]="productoForm.invalid"></p-button>
+    </div>
+  </form>
+</p-dialog>
+
+<!-- MODAL VER SERIES Y SKUS REGISTRADOS DE UN ACTIVO -->
+<p-dialog *ngIf="!esSoloConsulta" [header]="'Series y SKUs - ' + (productoSeleccionadoSku?.codigo || '')"
+  [(visible)]="displayModalSkus" [modal]="true" [style]="{width: '480px'}" appendTo="body">
+
+  <div *ngIf="productoSeleccionadoSku" class="mb-3">
+    <p class="text-sm text-slate-600 mb-2">
+      <strong>Equipo:</strong> {{ productoSeleccionadoSku.descripcion }}
+    </p>
+    <div class="relative w-full">
+      <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+      <input type="text" pInputText [ngModel]="busquedaSku()" (ngModelChange)="busquedaSku.set($event)"
+        placeholder="Filtrar por SKU o estado..." class="w-full !pl-8 !py-1.5 text-sm !rounded-lg" />
+    </div>
+  </div>
+
+  <p-table [value]="skusFiltrados()" [loading]="loadingSkus()" [paginator]="true" [rows]="8" responsiveLayout="scroll"
+    styleClass="p-datatable-sm p-datatable-gridlines">
+
+    <ng-template pTemplate="header">
+      <tr class="bg-slate-100 text-slate-800">
+        <th class="p-2 text-left font-bold">SKU / N° Serie</th>
+        <th class="p-2 text-center font-bold">Estado Actual</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-skuItem>
+      <tr>
+        <td class="p-2 font-mono font-bold text-slate-800">{{ skuItem.sku }}</td>
+        <td class="p-2 text-center">
+          <p-tag [severity]="skuItem.estado === 'DISPONIBLE' ? 'success' : 'warn'" [value]="skuItem.estado">
+          </p-tag>
+        </td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="2" class="text-center p-4 text-slate-400">
+          No hay series o SKUs que coincidan con la búsqueda.
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+
+  <div class="flex justify-end mt-4">
+    <p-button label="Cerrar" severity="secondary" (onClick)="displayModalSkus.set(false)"></p-button>
+  </div>
+</p-dialog>
+
+<!-- MODAL REGISTRAR NUEVA CATEGORÍA -->
+<p-dialog *ngIf="!esSoloConsulta" header="Registrar Nueva Categoría" [(visible)]="categoriaDialog" [modal]="true"
+  [style]="{width: '380px'}" appendTo="body">
+
+  <div class="flex flex-col gap-3 mt-2">
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Nombre de la Categoría *</label>
+      <input type="text" pInputText [(ngModel)]="nuevaCategoriaNombre" placeholder="EJ: ARTÍCULOS DE LIMPIEZA"
+        class="w-full uppercase" style="text-transform: uppercase;" />
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 mt-4">
+      <p-button label="Cancelar" severity="secondary" (onClick)="categoriaDialog = false"></p-button>
+      <p-button label="Guardar Categoría" (onClick)="guardarNuevaCategoria()"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- MODAL MOVIMIENTO KARDEX -->
+<p-dialog *ngIf="!esSoloConsulta"
+  [header]="'Registrar ' + tipoMovimiento() + ' - ' + (productoSeleccionado?.codigo || '')"
+  [(visible)]="movimientoDialog" [modal]="true" [style]="{width: '420px'}" appendTo="body">
+  <form [formGroup]="movimientoForm" (ngSubmit)="guardarMovimiento()" class="flex flex-col gap-4 mt-2">
+    <div *ngIf="productoSeleccionado?.requiereSku">
+      <label class="block font-medium mb-1 text-slate-700">SKU / N° Serie (Opcional)</label>
+      <input type="text" pInputText formControlName="sku" class="w-full" placeholder="EJ: SKU-LAP-2026-0001" />
+    </div>
+
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Cantidad</label>
+      <p-inputnumber formControlName="cantidad" [min]="0.01" class="w-full"></p-inputnumber>
+    </div>
+    <div *ngIf="tipoMovimiento() === 'ENTRADA'">
+      <label class="block font-medium mb-1 text-slate-700">Costo Unitario (S/)</label>
+      <p-inputnumber formControlName="costoUnitario" class="w-full" mode="currency" currency="PEN"
+        locale="es-PE"></p-inputnumber>
+    </div>
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Fecha</label>
+      <input type="date" pInputText formControlName="fecha" class="w-full" />
+    </div>
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">
+        {{ tipoMovimiento() === 'ENTRADA' ? 'Proveedor *' : 'Cliente *' }}
+      </label>
+      <input type="text" pInputText formControlName="proveedorCliente" class="w-full"
+        placeholder="Ingrese nombre/razón social" />
+    </div>
+    <div>
+      <label class="block font-medium mb-1 text-slate-700">Área *</label>
+      <input type="text" pInputText formControlName="area" class="w-full"
+        placeholder="EJ: Almacén Central / Logística" />
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <p-button label="Cancelar" severity="secondary" (onClick)="movimientoDialog.set(false)"></p-button>
+      <p-button label="Procesar" type="submit" [disabled]="movimientoForm.invalid"></p-button>
+    </div>
+  </form>
+</p-dialog>
+
+<!-- MODAL KARDEX HISTÓRICO -->
+<p-dialog *ngIf="!esSoloConsulta"
+  [header]="'Historial Kardex - ' + (productoSeleccionado?.codigo || '') + ' (' + (productoSeleccionado?.descripcion || '') + ')'"
+  [(visible)]="kardexDialog" [modal]="true" [style]="{width: '85vw'}" appendTo="body">
+
+  <p-table [value]="historialKardex()" [loading]="loadingKardex()" [paginator]="true" [rows]="5"
+    responsiveLayout="scroll" styleClass="p-datatable-striped p-datatable-gridlines">
+
+    <ng-template pTemplate="header">
+      <tr class="bg-slate-200 border-b border-slate-300 text-slate-800">
+        <th class="p-3 text-left font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Fecha</th>
+        <th class="p-3 text-left font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">SKU
+          / Serie</th>
+        <th class="p-3 text-center font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Tipo</th>
+        <th class="p-3 text-right font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Cant.</th>
+        <th class="p-3 text-right font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Costo Unit.</th>
+        <th class="p-3 text-right font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Subtotal</th>
+        <th class="p-3 text-right font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Stock Ant.</th>
+        <th class="p-3 text-right font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Stock Nuevo</th>
+        <th class="p-3 text-left font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Prov./Cliente</th>
+        <th class="p-3 text-left font-bold" style="color: #1e293b !important; background-color: #f1f5f9 !important;">
+          Área</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-h>
+      <tr class="border-b border-slate-200 hover:bg-slate-50 align-middle"
+        style="color: #0f172a !important; background-color: #ffffff !important;">
+        <td class="p-3 font-medium whitespace-nowrap">{{ h.fecha }}</td>
+        <td class="p-3 font-mono font-semibold text-blue-700 whitespace-nowrap">{{ h.skuAsignado || '-' }}</td>
+        <td class="p-3 text-center whitespace-nowrap">
+          <p-tag [severity]="h.tipo === 'ENTRADA' ? 'success' : (h.tipo === 'DEVOLUCION' ? 'secondary' : 'warn')"
+            [value]="h.tipo">
+          </p-tag>
+        </td>
+        <td class="p-3 text-right font-bold whitespace-nowrap">{{ h.cantidad }}</td>
+        <td class="p-3 text-right whitespace-nowrap">S/ {{ h.costoUnitario | number:'1.2-4' }}</td>
+        <td class="p-3 text-right font-semibold whitespace-nowrap">S/ {{ h.subtotal | number:'1.2-2' }}</td>
+        <td class="p-3 text-right text-slate-500 whitespace-nowrap">{{ h.stockAnterior }}</td>
+        <td class="p-3 text-right font-bold text-slate-900 whitespace-nowrap">{{ h.stockNuevo }}</td>
+        <td class="p-3 whitespace-nowrap">{{ h.proveedorCliente || '-' }}</td>
+        <td class="p-3 whitespace-nowrap">{{ h.area || '-' }}</td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="10" class="text-center p-6 text-slate-500 font-medium"
+          style="color: #64748b !important; background-color: #ffffff !important;">
+          No hay movimientos registrados en el Kardex para este artículo.
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</p-dialog>

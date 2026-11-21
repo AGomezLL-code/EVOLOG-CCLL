@@ -1,0 +1,168 @@
+<div
+  style="display: flex; height: 100vh; width: 100vw; overflow: hidden; font-family: system-ui, -apple-system, sans-serif;">
+
+  <!-- BARRA LATERAL (SIDEBAR GUINDA CCLL INSTITUCIONAL) -->
+  <aside
+    style="width: 260px; background: linear-gradient(180deg, #2b0811 0%, #3a0d17 50%, #24060d 100%); color: #fecdd3; display: flex; flex-direction: column; flex-shrink: 0; border-right: 1px solid #4a121f; box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);">
+
+    <!-- Header Sidebar: Logo EVOLOG-CCLL -->
+    <div
+      style="padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <div
+        style="background-color: #4a121f; border: 1.5px solid #d4af37; color: #d4af37; font-weight: 800; font-size: 1.15rem; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        E</div>
+      <div>
+        <div style="color: #ffffff; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.5px;">EVOLOG-CCLL</div>
+        <div
+          style="color: #e2b857; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          Evolución Logística Digital</div>
+      </div>
+    </div>
+
+    <!-- Sub-header: Empresa / Área del usuario -->
+    <div
+      style="margin: 1rem 1rem 0.5rem 1rem; padding: 0.65rem 0.85rem; background-color: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; display: flex; align-items: center; gap: 0.6rem;">
+      <div
+        style="background-color: #4a121f; border: 1px solid #d4af37; color: #d4af37; font-size: 0.75rem; font-weight: 800; padding: 0.2rem 0.45rem; border-radius: 4px;">
+        CC</div>
+      <div>
+        <div style="color: #ffffff; font-size: 0.8rem; font-weight: 600;">Cámara de Comercio</div>
+        <div style="color: #fda4af; font-size: 0.7rem;">Área: {{ usuario?.area || 'La Libertad' }}</div>
+      </div>
+    </div>
+
+    <!-- Menú de Navegación Principal -->
+    <nav style="flex: 1; padding: 0.5rem 0.75rem; overflow-y: auto;">
+      <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+
+        <!-- SOLO PERSONAL DE LOGÍSTICA -->
+        <li *ngIf="esPersonalLogistica()">
+          <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-home"></i> <span>Inicio</span>
+          </a>
+        </li>
+
+        <!-- VISIBLE PARA TODOS -->
+        <li>
+          <a routerLink="/requerimientos" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-file-edit"></i> <span>Solicitudes</span>
+          </a>
+        </li>
+
+        <!-- EVENTOS Y AMBIENTES (JEFE LOGÍSTICA Y ÁREA COMERCIAL) -->
+        <li *ngIf="puedeGestionarEventos()">
+          <a routerLink="/eventos" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-calendar"></i> <span>Eventos y ambientes</span>
+          </a>
+        </li>
+
+        <!-- SOLO PERSONAL DE LOGÍSTICA -->
+        <li *ngIf="puedeVerInventario()">
+          <a routerLink="/inventario" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-box"></i>
+            <span>{{ esPersonalLogistica() ? 'Inventario' : 'Catálogo Disponible' }}</span>
+          </a>
+        </li>
+
+        <li *ngIf="esPersonalLogistica()">
+          <a routerLink="/movimientos" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-sync"></i> <span>Entradas y salidas</span>
+          </a>
+        </li>
+
+        <!-- Separador de Sección: SOLO JEFE DE LOGÍSTICA -->
+        <ng-container *ngIf="esJefe()">
+          <li
+            style="margin-top: 1rem; padding: 0.4rem 0.8rem; font-size: 0.65rem; font-weight: 700; color: #e2b857; text-transform: uppercase; letter-spacing: 0.5px;">
+            GESTIÓN Y CONTROL
+          </li>
+
+          <li>
+            <a routerLink="/auditoria" routerLinkActive="active-link" class="nav-link">
+              <i class="pi pi-history"></i> <span>Auditoría del sistema</span>
+            </a>
+          </li>
+        </ng-container>
+
+        <!-- MI PERFIL (visible para TODOS los roles) -->
+        <li style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.08);">
+          <a routerLink="/mi-perfil" routerLinkActive="active-link" class="nav-link">
+            <i class="pi pi-user-edit"></i> <span>Mi Perfil</span>
+          </a>
+        </li>
+
+      </ul>
+    </nav>
+
+    <!-- Footer Sidebar -->
+    <div
+      style="padding: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.1); background-color: rgba(0, 0, 0, 0.25);">
+      <div
+        style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 0.5rem 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="pi pi-shield" style="color: #e2b857;"></i>
+        <div>
+          <div style="color: #ffffff; font-size: 0.75rem; font-weight: 600;">JWT RBAC Activo</div>
+          <div style="color: #fda4af; font-size: 0.65rem;">Sesión autenticada</div>
+        </div>
+      </div>
+      <div style="text-align: center; color: #fda4af; opacity: 0.65; font-size: 0.65rem; margin-top: 0.5rem;">v1.0 -
+        EVOLOG-CCLL</div>
+    </div>
+  </aside>
+
+  <!-- ÁREA DE CONTENIDO PRINCIPAL -->
+  <main style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: #f8fafc;">
+
+    <!-- Top Header Superior -->
+    <header
+      style="height: 60px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; flex-shrink: 0;">
+
+      <!-- Identificador Institucional -->
+      <div
+        style="display: flex; align-items: center; gap: 0.5rem; color: #334155; font-size: 0.85rem; font-weight: 600;">
+        <i class="pi pi-building" style="color: #4a121f;"></i>
+        <span>Sistema Integral de Gestión Logística y Eventos · CCLL</span>
+      </div>
+
+      <!-- Perfil del Usuario Logueado + Cerrar Sesión -->
+      <div style="display: flex; align-items: center; gap: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; text-decoration: none;"
+          routerLink="/mi-perfil" title="Ir a Mi Perfil">
+          
+          <!-- Foto de perfil si existe, o círculo con iniciales si no hay foto -->
+          <img *ngIf="fotoPerfil() as foto"
+               [src]="foto"
+               alt="Foto de perfil"
+               style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 1.5px solid #d4af37; box-shadow: 0 1px 3px rgba(0,0,0,0.15);" />
+          <div *ngIf="!fotoPerfil()"
+               style="background: linear-gradient(135deg, #4a121f, #6d1b2e); border: 1.5px solid #d4af37; color: white; font-weight: 700; font-size: 0.85rem; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.15);">
+            {{ iniciales }}
+          </div>
+
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">{{ usuario?.nombreCompleto }}</div>
+            <div style="font-size: 0.7rem; color: #64748b;">
+              <span style="color: #7c2d3e; font-weight: 600;">{{ rolLegible }}</span> · {{ usuario?.area }}
+            </div>
+          </div>
+        </div>
+
+        <button (click)="cerrarSesion()" title="Cerrar Sesión"
+          style="display: flex; align-items: center; gap: 0.4rem; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+          <i class="pi pi-sign-out"></i>
+          <span>Salir</span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- Área de trabajo dinámica -->
+    <div style="flex: 1; padding: 1.5rem; overflow-y: auto;">
+      <router-outlet></router-outlet>
+    </div>
+
+  </main>
+
+  <!-- Diálogo de confirmación para cerrar sesión (Aplica a todos los roles) -->
+  <p-confirmDialog></p-confirmDialog>
+</div>

@@ -1,0 +1,169 @@
+<div style="padding: 1.5rem; background-color: #f8fafc; min-height: 100vh;">
+
+  <!-- ENCABEZADO -->
+  <div style="margin-bottom: 1.5rem;">
+    <h1 style="font-size: 1.875rem; font-weight: 700; color: #0f172a; margin: 0;">Dashboard de Gestión Logística</h1>
+    <p style="color: #64748b; margin-top: 0.25rem; font-size: 0.875rem;">Cámara de Comercio y Producción de La Libertad — EVOLOG-CCLL</p>
+  </div>
+
+  <!-- REJILLA DE TARJETAS (4 COLUMNAS HORIZONTALES) -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    
+    <!-- KPI 1: Valor Total -->
+    <div style="background: #ffffff; padding: 1.25rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #2563eb;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="color: #64748b; font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Valor Total Inventario</span>
+          <div style="color: #0f172a; font-weight: 700; font-size: 1.5rem;">
+            S/ {{ (kpis.valorTotalInventario || 0) | number:'1.2-2' }}
+          </div>
+        </div>
+        <div style="background-color: #dbeafe; padding: 0.6rem; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <i class="pi pi-dollar" style="color: #2563eb; font-size: 1.25rem;"></i>
+        </div>
+      </div>
+      <span style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.75rem; display: block;">Valorizado actual</span>
+    </div>
+
+    <!-- KPI 2: Total Artículos -->
+    <div style="background: #ffffff; padding: 1.25rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #0891b2;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="color: #64748b; font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Total de Artículos</span>
+          <div style="color: #0f172a; font-weight: 700; font-size: 1.5rem;">
+            {{ kpis.totalArticulos || 0 }}
+          </div>
+        </div>
+        <div style="background-color: #cffaff; padding: 0.6rem; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <i class="pi pi-box" style="color: #0891b2; font-size: 1.25rem;"></i>
+        </div>
+      </div>
+      <span style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.75rem; display: block;">Catálogo en BD</span>
+    </div>
+
+    <!-- KPI 3: Stock en Riesgo -->
+    <div style="background: #ffffff; padding: 1.25rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="color: #64748b; font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Stock en Riesgo</span>
+          <div style="color: #ef4444; font-weight: 700; font-size: 1.5rem;">
+            {{ kpis.articulosBajoStock || 0 }}
+          </div>
+        </div>
+        <div style="background-color: #fee2e2; padding: 0.6rem; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <i class="pi pi-exclamation-triangle" style="color: #ef4444; font-size: 1.25rem;"></i>
+        </div>
+      </div>
+      <span style="color: #ef4444; font-weight: 500; font-size: 0.75rem; margin-top: 0.75rem; display: block;">Bajo stock mínimo</span>
+    </div>
+
+    <!-- KPI 4: Atención Solicitudes -->
+    <div style="background: #ffffff; padding: 1.25rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #f97316;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="color: #64748b; font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Atención Solicitudes</span>
+          <div style="color: #0f172a; font-weight: 700; font-size: 1.5rem;">
+            {{ porcentajeAtencion }}%
+          </div>
+        </div>
+        <div style="background-color: #ffedd5; padding: 0.6rem; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <i class="pi pi-file" style="color: #f97316; font-size: 1.25rem;"></i>
+        </div>
+      </div>
+      <span style="color: #22c55e; font-weight: 500; font-size: 0.75rem; margin-top: 0.75rem; display: block;">Calculado en tiempo real</span>
+    </div>
+
+  </div>
+
+
+
+  <!-- BARRAS ANUALES -->
+  <div class="grid mb-4">
+    <div class="col-12">
+      <div class="surface-card p-4 shadow-1 border-round">
+        <h2 class="text-xl font-bold text-900 mb-3">Movimientos de Inventario (Entradas vs Salidas)</h2>
+        <div style="height: 350px; position: relative;">
+          <p-chart type="bar" [data]="barData" [options]="barOptions" height="100%"></p-chart>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+
+  <!-- GRÁFICO 1: RESUMEN DE SOLICITUDES DE PEDIDO -->
+  <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+    <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+      Resumen de Solicitudes de Pedido
+    </h3>
+    
+    <div style="height: 280px; position: relative; width: 100%;">
+      <p-chart 
+        type="doughnut" 
+        [data]="doughnutSolicitudesData" 
+        [options]="doughnutSolicitudesOptions" 
+        height="100%">
+      </p-chart>
+    </div>
+  </div>
+
+  <!-- GRÁFICO 2: DISTRIBUCIÓN DE VALOR POR CATEGORÍA -->
+  <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+    <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+      Distribución de Valor por Categoría
+    </h3>
+    
+    <div style="height: 280px; position: relative; width: 100%;">
+      <p-chart 
+        type="doughnut" 
+        [data]="categoriaChartData" 
+        [options]="categoriaChartOptions" 
+        height="100%">
+      </p-chart>
+    </div>
+  </div>
+
+
+  </div>
+
+  <!-- TABLA KARDEX -->
+  <div class="grid">
+    <div class="col-12">
+      <div class="surface-card p-4 shadow-1 border-round">
+        <h3 class="text-xl font-bold text-900 mb-3">Últimos Movimientos Registrados (Kardex)</h3>
+        <p-table [value]="movimientosRecientes" [rows]="10" responsiveLayout="scroll" styleClass="p-datatable-striped">
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Fecha</th>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Costo Unit.</th>
+              <th>Subtotal</th>
+              <th>Área / Destino</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-mov>
+            <tr>
+              <td>{{ mov.fecha | date:'dd/MM/yyyy' }}</td>
+              <td><strong>{{ mov.codigo }}</strong></td>
+              <td>{{ mov.descripcion }}</td>
+              <td>
+                <span [class]="mov.tipo === 'ENTRADA' ? 'bg-green-100 text-green-700 px-2 py-1 border-round font-bold text-xs' : 'bg-orange-100 text-orange-700 px-2 py-1 border-round font-bold text-xs'">
+                  {{ mov.tipo }}
+                </span>
+              </td>
+              <td>{{ mov.cantidad }}</td>
+              <td>{{ mov.costo_unitario | currency:'PEN':'symbol':'1.2-2' }}</td>
+              <td><strong>{{ mov.subtotal | currency:'PEN':'symbol':'1.2-2' }}</strong></td>
+              <td>{{ mov.area }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  </div>
+
+  </div>
+

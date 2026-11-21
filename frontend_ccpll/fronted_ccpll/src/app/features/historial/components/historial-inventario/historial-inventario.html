@@ -1,0 +1,100 @@
+<p-toast></p-toast>
+
+<div class="card" style="padding: 1.5rem; background: #ffffff; border-radius: 8px;">
+  <!-- Header de la sección -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+      <h2 style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #1e293b;">Entradas y salidas (Kardex)</h2>
+      <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Histórico y trazabilidad de movimientos de inventario</p>
+    </div>
+
+    <!-- Botón Exportar Kardex a Excel -->
+    <p-button 
+      label="Exportar Kardex (Excel)" 
+      icon="pi pi-file-excel" 
+      severity="success" 
+      [outlined]="true"
+      (onClick)="exportarKardexExcel()">
+    </p-button>
+  </div>
+
+  <!-- Barra de Filtros: Buscador Global + Combobox de Ordenamiento -->
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    
+    <!-- Buscador Global Funcional -->
+    <p-iconField iconPosition="left" styleClass="w-full md:w-20rem">
+      <p-inputIcon styleClass="pi pi-search"></p-inputIcon>
+      <input 
+        pInputText 
+        type="text" 
+        (input)="dt.filterGlobal($any($event.target).value, 'contains')" 
+        placeholder="Buscar solicitudes, productos, proveedores..." 
+        style="width: 100%; padding-left: 2.5rem;" />
+    </p-iconField>
+
+    <!-- Combobox de Ordenamiento -->
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <label style="font-size: 0.9rem; font-weight: 600; color: #475569;">Ordenar por:</label>
+      <p-select 
+        [options]="opcionesOrden" 
+        [(ngModel)]="criterioOrdenSeleccionado" 
+        optionLabel="label" 
+        placeholder="Seleccionar orden" 
+        (onChange)="aplicarOrdenamiento(dt)"
+        styleClass="w-14rem">
+      </p-select>
+    </div>
+  </div>
+
+  <!-- Tabla PrimeNG -->
+  <p-table 
+    #dt
+    [value]="movimientos" 
+    [loading]="loading" 
+    [paginator]="true" 
+    [rows]="10" 
+    [responsiveLayout]="'scroll'" 
+    styleClass="p-datatable-striped p-datatable-gridlines"
+    [globalFilterFields]="['articuloCodigo', 'articuloDescripcion', 'tipo', 'proveedorCliente', 'area', 'fecha']">
+
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="fecha">Fecha <p-sortIcon field="fecha"></p-sortIcon></th>
+        <th pSortableColumn="articuloCodigo">Código <p-sortIcon field="articuloCodigo"></p-sortIcon></th>
+        <th pSortableColumn="articuloDescripcion">Artículo <p-sortIcon field="articuloDescripcion"></p-sortIcon></th>
+        <th pSortableColumn="tipo">Tipo <p-sortIcon field="tipo"></p-sortIcon></th>
+        <th style="text-align: right;">Cantidad</th>
+        <th style="text-align: right;">Stock Ant.</th>
+        <th style="text-align: right;">Stock Nuevo</th>
+        <th style="text-align: right;">Costo Unit. (S/)</th>
+        <th style="text-align: right;">Subtotal (S/)</th>
+        <th pSortableColumn="proveedorCliente">Prov. / Área</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-mov>
+      <tr>
+        <td>{{ mov.fecha | date:'dd/MM/yyyy' }}</td>
+        <td style="font-weight: bold;">{{ mov.articuloCodigo }}</td>
+        <td>{{ mov.articuloDescripcion }}</td>
+        <td>
+          <p-tag [value]="mov.tipo" [severity]="getSeverity(mov.tipo)"></p-tag>
+        </td>
+        <td style="font-weight: bold; text-align: right;">{{ mov.cantidad }}</td>
+        <td style="text-align: right; color: #64748b;">{{ mov.stockAnterior }}</td>
+        <td style="text-align: right; font-weight: bold; color: #1e293b;">{{ mov.stockNuevo }}</td>
+        <td style="text-align: right;">{{ mov.costoUnitario | currency:'PEN':'symbol':'1.2-2' }}</td>
+        <td style="text-align: right; font-weight: bold;">{{ mov.subtotal | currency:'PEN':'symbol':'1.2-2' }}</td>
+        <td>{{ mov.proveedorCliente || mov.area || '-' }}</td>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td colspan="10" style="text-align: center; padding: 1.5rem; color: #64748b;">
+          No se encontraron movimientos registrados en el Kardex.
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
