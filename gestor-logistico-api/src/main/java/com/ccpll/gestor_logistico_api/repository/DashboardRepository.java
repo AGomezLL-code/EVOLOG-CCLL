@@ -5,32 +5,9 @@ import org.springframework.data.jpa.repository.Query;
 import com.ccpll.gestor_logistico_api.entity.inventario.InventarioEntity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 
 public interface DashboardRepository extends JpaRepository<InventarioEntity, Integer> {
-
-    interface ValorCategoriaProj {
-        String getCategoria();
-        BigDecimal getValor_total();
-    }
-
-    interface MovimientoRecienteProj {
-        LocalDate getFecha();
-        String getCodigo();
-        String getDescripcion();
-        String getTipo();
-        BigDecimal getCantidad();
-        BigDecimal getCosto_unitario();
-        BigDecimal getSubtotal();
-        String getArea();
-    }
-
-    interface MovimientoMensualProj {
-        String getMes();
-        BigDecimal getEntradas();
-        BigDecimal getSalidas();
-    }
 
     // 1. KPI: Valor Total
     @Query(value = "SELECT COALESCE(SUM(stock_actual * costo_promedio), 0) FROM inventario WHERE activo = 1", nativeQuery = true)
@@ -48,10 +25,10 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
             INNER JOIN categorias c ON i.categoria_id = c.id
             WHERE i.activo = 1
             GROUP BY c.id, c.nombre
-            HAVING valor_total > 0
+            HAVING COALESCE(SUM(i.stock_actual * i.costo_promedio), 0) > 0
             ORDER BY valor_total DESC
             """, nativeQuery = true)
-    List<ValorCategoriaProj> getValorPorCategoria();
+    List<Object[]> getValorPorCategoria();
 
     // 4. Tabla: Últimos 10 movimientos del Kardex
     @Query(value = """
@@ -68,7 +45,7 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
             ORDER BY h.fecha DESC, h.id DESC
             LIMIT 10
             """, nativeQuery = true)
-    List<MovimientoRecienteProj> getUltimosMovimientos();
+    List<Object[]> getUltimosMovimientos();
 
     // 5. Gráfico de Barras: Entradas vs Salidas por mes real
     @Query(value = """
@@ -77,8 +54,8 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
                    COALESCE(SUM(CASE WHEN h.tipo = 'SALIDA' THEN h.cantidad ELSE 0 END), 0) AS salidas
             FROM historial_inventario h
             GROUP BY DATE_FORMAT(h.fecha, '%Y-%m')
-            ORDER BY mes ASC
+            ORDER BY DATE_FORMAT(h.fecha, '%Y-%m') ASC
             LIMIT 12
             """, nativeQuery = true)
-    List<MovimientoMensualProj> getMovimientosMensualesReales();
+    List<Object[]> getMovimientosMensualesReales();
 }
