@@ -13,7 +13,7 @@ import {
 })
 export class EventoService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8080/api/v1/eventos';
+  private readonly API_URL = 'https://evolog-ccll.onrender.com/api/v1/eventos';
 
   listarAmbientes(): Observable<Ambiente[]> {
     return this.http.get<Ambiente[]>(`${this.API_URL}/ambientes`);

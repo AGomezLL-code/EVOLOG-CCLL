@@ -11,7 +11,7 @@ import { InventarioResponseDTO, InventarioRequestDTO, EntradaInventarioRequestDT
 })
 export class InventarioService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/v1/inventario';
+  private readonly apiUrl = 'https://evolog-ccll.onrender.com/api/v1/inventario';
 
   listarTodos(): Observable<InventarioResponseDTO[]> {
     return this.http.get<InventarioResponseDTO[]>(this.apiUrl);

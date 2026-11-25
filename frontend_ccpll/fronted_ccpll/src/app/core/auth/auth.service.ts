@@ -20,7 +20,7 @@ export class AuthService {
   private router = inject(Router);
   private platformId = inject(PLATFORM_ID);
 
-  private readonly API_URL = 'http://localhost:8080/api/v1/auth';
+  private readonly API_URL = 'https://evolog-ccll.onrender.com/api/v1/auth';
   private readonly STORAGE_KEY = 'evolog_sesion';
 
   login(credentials: { username: string; password: string }): Observable<UsuarioSesion> {

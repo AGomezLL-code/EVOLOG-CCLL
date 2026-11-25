@@ -12,7 +12,7 @@ import {
 })
 export class DashboardService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/dashboard';
+  private apiUrl = 'https://evolog-ccll.onrender.com/api/v1/dashboard';
 
   // 1. KPIs Globales
   getKpis(): Observable<DashboardKpiDTO> {

@@ -10,7 +10,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class PerfilService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/usuario';
+  private apiUrl = 'https://evolog-ccll.onrender.com/api/v1/usuario';
 
   fotoPerfilSignal = signal<string | null>(null);
 

@@ -9,7 +9,7 @@ import { HistoriaInventarioResponseDTO } from '../../../core/models/historial.mo
 })
 export class HistorialInventarioService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/historial-inventario';
+  private apiUrl = 'https://evolog-ccll.onrender.com/api/v1/historial-inventario';
 
   listarTodos(): Observable<HistoriaInventarioResponseDTO[]> {
     return this.http.get<HistoriaInventarioResponseDTO[]>(this.apiUrl);

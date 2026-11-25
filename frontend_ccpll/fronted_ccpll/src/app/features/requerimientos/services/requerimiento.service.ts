@@ -14,7 +14,7 @@ import {
 export class RequerimientoService {
 
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/requerimientos';
+  private apiUrl = 'https://evolog-ccll.onrender.com/api/v1/requerimientos';
 
   listarTodos(): Observable<RequerimientoResponse[]> {
     return this.http.get<RequerimientoResponse[]>(this.apiUrl);

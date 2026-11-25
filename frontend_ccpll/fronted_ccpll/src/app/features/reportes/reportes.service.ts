@@ -10,7 +10,7 @@ export class ReportesService {
   private http = inject(HttpClient);
   
   // URL directa hacia tu Backend Spring Boot
-  private apiUrl = 'http://localhost:8080/api/v1/reportes';
+  private apiUrl = 'https://evolog-ccll.onrender.com/api/v1/reportes';
 
   descargarInventarioExcel(): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/inventario/excel`, {

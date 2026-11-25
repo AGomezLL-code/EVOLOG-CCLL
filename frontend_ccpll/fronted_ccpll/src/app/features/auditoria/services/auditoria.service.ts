@@ -8,7 +8,7 @@ import { RegistroAuditoria } from '../../../core/models/auditoria.model';
 })
 export class AuditoriaService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8080/api/v1/auditoria';
+  private readonly API_URL = 'https://evolog-ccll.onrender.com/api/v1/auditoria';
 
   listarTodo(): Observable<RegistroAuditoria[]> {
     return this.http.get<RegistroAuditoria[]>(this.API_URL);

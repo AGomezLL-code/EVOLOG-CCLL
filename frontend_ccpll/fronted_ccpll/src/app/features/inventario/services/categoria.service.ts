@@ -8,7 +8,7 @@ import { CategoriaRequestDTO,CategoriaResponseDTO } from '../../../core/models/c
 })
 export class CategoriaService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:8080/api/v1/categorias';
+  private readonly apiUrl = 'https://evolog-ccll.onrender.com/api/v1/categorias';
 
   listarTodas(): Observable<CategoriaResponseDTO[]> {
     return this.http.get<CategoriaResponseDTO[]>(this.apiUrl);
