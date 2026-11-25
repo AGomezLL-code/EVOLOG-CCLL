@@ -2,15 +2,35 @@ package com.ccpll.gestor_logistico_api.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
 import com.ccpll.gestor_logistico_api.entity.inventario.InventarioEntity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
-@SuppressWarnings({"rawtypes", "unchecked"})
 public interface DashboardRepository extends JpaRepository<InventarioEntity, Integer> {
+
+    interface ValorCategoriaProj {
+        String getCategoria();
+        BigDecimal getValor_total();
+    }
+
+    interface MovimientoRecienteProj {
+        LocalDate getFecha();
+        String getCodigo();
+        String getDescripcion();
+        String getTipo();
+        BigDecimal getCantidad();
+        BigDecimal getCosto_unitario();
+        BigDecimal getSubtotal();
+        String getArea();
+    }
+
+    interface MovimientoMensualProj {
+        String getMes();
+        BigDecimal getEntradas();
+        BigDecimal getSalidas();
+    }
 
     // 1. KPI: Valor Total
     @Query(value = "SELECT COALESCE(SUM(stock_actual * costo_promedio), 0) FROM inventario WHERE activo = 1", nativeQuery = true)
@@ -31,7 +51,7 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
             HAVING valor_total > 0
             ORDER BY valor_total DESC
             """, nativeQuery = true)
-    List getValorPorCategoria();
+    List<ValorCategoriaProj> getValorPorCategoria();
 
     // 4. Tabla: Últimos 10 movimientos del Kardex
     @Query(value = """
@@ -48,7 +68,7 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
             ORDER BY h.fecha DESC, h.id DESC
             LIMIT 10
             """, nativeQuery = true)
-    List getUltimosMovimientos();
+    List<MovimientoRecienteProj> getUltimosMovimientos();
 
     // 5. Gráfico de Barras: Entradas vs Salidas por mes real
     @Query(value = """
@@ -60,5 +80,5 @@ public interface DashboardRepository extends JpaRepository<InventarioEntity, Int
             ORDER BY mes ASC
             LIMIT 12
             """, nativeQuery = true)
-    List getMovimientosMensualesReales();
+    List<MovimientoMensualProj> getMovimientosMensualesReales();
 }
