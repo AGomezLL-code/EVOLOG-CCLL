@@ -30,7 +30,7 @@ export class DashboardComponent implements OnInit {
     articulosBajoStock: 0
   };
 
-  movimientosRecientes: MovimientoRecienteDTO[] = [];
+  movimientosRecientes: any[] = [];
 
   barData: any = { labels: [], datasets: [] };
   barOptions: any = {};
@@ -71,11 +71,16 @@ export class DashboardComponent implements OnInit {
 
   cargarGraficoMovimientosReales(): void {
     this.dashboardService.getMovimientosMensuales().subscribe({
-      next: (data) => {
+      next: (data: any[]) => {
         queueMicrotask(() => {
-          const labels = data.map(item => item.mes);
-          const entradas = data.map(item => item.entradas);
-          const salidas = data.map(item => item.salidas);
+          const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+          const labels = data.map((item: any) => {
+            const rawMes = item.mes ?? item[0];
+            const m = Number(rawMes);
+            return !isNaN(m) && m >= 1 && m <= 12 ? meses[m - 1] : (rawMes || 'Actual');
+          });
+          const entradas = data.map((item: any) => item.entradas ?? item[1] ?? 0);
+          const salidas = data.map((item: any) => item.salidas ?? item[2] ?? 0);
 
           this.barData = {
             labels: labels,
@@ -107,7 +112,7 @@ export class DashboardComponent implements OnInit {
             },
             scales: {
               x: { grid: { display: false }, ticks: { color: '#64748b' } },
-              y: { grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } }
+              y: { grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', precision: 0 } }
             }
           };
 
@@ -166,13 +171,13 @@ export class DashboardComponent implements OnInit {
 
   cargarValorPorCategoria(): void {
     this.dashboardService.getValorPorCategoria().subscribe({
-      next: (data: ValorCategoriaDTO[]) => {
+      next: (data: any[]) => {
         queueMicrotask(() => {
           this.categoriaChartData = {
-            labels: data.map(item => item.categoria),
+            labels: data.map((item: any) => item.categoria ?? item.categoriaNombre ?? item.nombre ?? item[0] ?? 'Sin Categoría'),
             datasets: [
               {
-                data: data.map(item => item.valor_total),
+                data: data.map((item: any) => Number(item.valor_total ?? item.valorTotal ?? item.total ?? item[1] ?? 0)),
                 backgroundColor: ['#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'],
                 hoverBackgroundColor: ['#172554', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa']
               }
@@ -199,9 +204,32 @@ export class DashboardComponent implements OnInit {
 
   cargarMovimientosRecientes(): void {
     this.dashboardService.getMovimientosRecientes().subscribe({
-      next: (data: MovimientoRecienteDTO[]) => {
+      next: (data: any[]) => {
         queueMicrotask(() => {
-          this.movimientosRecientes = data;
+          this.movimientosRecientes = (data || []).map((item: any) => {
+            if (Array.isArray(item)) {
+              return {
+                fecha: item[0],
+                codigo: item[1],
+                descripcion: item[2],
+                tipo: item[3],
+                cantidad: item[4],
+                costoUnitario: item[5],
+                subtotal: item[6],
+                area: item[7]
+              };
+            }
+            return {
+              fecha: item.fecha ?? item.fechaMovimiento ?? item.fechaCreacion,
+              codigo: item.codigo ?? item.articuloCodigo ?? item.articulo?.codigo ?? '-',
+              descripcion: item.descripcion ?? item.articuloDescripcion ?? item.articulo?.descripcion ?? '-',
+              tipo: item.tipo ?? item.tipoMovimiento ?? 'ENTRADA',
+              cantidad: item.cantidad ?? 0,
+              costoUnitario: item.costo_unitario ?? item.costoUnitario ?? 0,
+              subtotal: item.subtotal ?? 0,
+              area: item.area ?? item.areaDestino ?? item.proveedorCliente ?? 'ALMACÉN CENTRAL'
+            };
+          });
           this.cdr.markForCheck();
         });
       },

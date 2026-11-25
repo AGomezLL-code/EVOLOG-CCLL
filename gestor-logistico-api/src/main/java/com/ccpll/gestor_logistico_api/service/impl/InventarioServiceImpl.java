@@ -25,7 +25,7 @@ public class InventarioServiceImpl implements InventarioService {
     private final InventarioRepository inventarioRepository;
     private final CategoriaRepository categoriaRepository;
     private final HistorialInventarioRepository historialRepository;
-    private final ActivoSerieRepository activoSerieRepository; // <--- NUEVO REPOSITORIO DE SERIES
+    private final ActivoSerieRepository activoSerieRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -43,166 +43,176 @@ public class InventarioServiceImpl implements InventarioService {
         return mapToResponseDTO(entity);
     }
 
-   @Override
-@Transactional
-public InventarioResponseDTO crear(InventarioRequestDTO dto) {
-    if (inventarioRepository.existsByCodigo(dto.getCodigo())) {
-        throw new IllegalArgumentException("Ya existe un producto registrado con el código: " + dto.getCodigo());
+    @Override
+    @Transactional
+    public InventarioResponseDTO crear(InventarioRequestDTO dto) {
+        if (inventarioRepository.existsByCodigo(dto.getCodigo())) {
+            throw new IllegalArgumentException("Ya existe un producto registrado con el código: " + dto.getCodigo());
+        }
+
+        CategoriaEntity categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + dto.getCategoriaId()));
+
+        Boolean requiereSku = dto.getRequiereSku() != null ? dto.getRequiereSku() : false;
+        BigDecimal stockInicial = dto.getStockActual() != null ? dto.getStockActual() : BigDecimal.ZERO;
+        BigDecimal costoInicial = dto.getCostoPromedio() != null ? dto.getCostoPromedio() : BigDecimal.ZERO;
+
+        InventarioEntity nuevoProducto = InventarioEntity.builder()
+                .codigo(dto.getCodigo())
+                .descripcion(dto.getDescripcion())
+                .unidad(dto.getUnidad())
+                .stockActual(stockInicial)
+                .costoPromedio(costoInicial)
+                .stockMinimo(dto.getStockMinimo() != null ? dto.getStockMinimo() : BigDecimal.ZERO)
+                .categoria(categoria)
+                .activo(dto.getActivo() != null ? dto.getActivo() : true)
+                .requiereSku(requiereSku)
+                .ubicacionFisica(dto.getUbicacionFisica())
+                .build();
+
+        InventarioEntity guardado = inventarioRepository.save(nuevoProducto);
+
+        if (stockInicial.compareTo(BigDecimal.ZERO) > 0) {
+            String skuHistorial = null;
+            if (Boolean.TRUE.equals(requiereSku)) {
+                generarSkusAutomaticos(guardado, stockInicial.intValue());
+                skuHistorial = "LOTE-INICIAL (" + stockInicial.intValue() + " SKUs)";
+            }
+
+            HistorialInventarioEntity historialInicial = HistorialInventarioEntity.builder()
+                    .articulo(guardado)
+                    .skuAsignado(skuHistorial)
+                    .tipo(HistorialInventarioEntity.TipoMovimiento.ENTRADA)
+                    .cantidad(stockInicial)
+                    .costoUnitario(costoInicial)
+                    .subtotal(stockInicial.multiply(costoInicial))
+                    .fecha(LocalDate.now())
+                    .proveedorCliente("INVENTARIO INICIAL")
+                    .area("ALMACÉN CENTRAL")
+                    .stockAnterior(BigDecimal.ZERO)
+                    .stockNuevo(stockInicial)
+                    .build();
+
+            historialRepository.save(historialInicial);
+        }
+
+        return mapToResponseDTO(guardado);
     }
 
-    CategoriaEntity categoria = categoriaRepository.findById(dto.getCategoriaId())
-            .orElseThrow(() -> new RuntimeException("Categoría no encontrada con ID: " + dto.getCategoriaId()));
+    @Override
+    @Transactional
+    public InventarioResponseDTO registrarEntrada(EntradaInventarioRequestDTO dto) {
+        InventarioEntity producto = inventarioRepository.findByIdConCategoria(dto.getArticuloId())
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + dto.getArticuloId()));
 
-    Boolean requiereSku = dto.getRequiereSku() != null ? dto.getRequiereSku() : false;
-    BigDecimal stockInicial = dto.getStockActual() != null ? dto.getStockActual() : BigDecimal.ZERO;
+        BigDecimal stockAnterior = producto.getStockActual();
+        BigDecimal costoAnterior = producto.getCostoPromedio();
+        BigDecimal valorTotalAnterior = stockAnterior.multiply(costoAnterior);
 
-    InventarioEntity nuevoProducto = InventarioEntity.builder()
-            .codigo(dto.getCodigo())
-            .descripcion(dto.getDescripcion())
-            .unidad(dto.getUnidad())
-            .stockActual(stockInicial)
-            .costoPromedio(dto.getCostoPromedio() != null ? dto.getCostoPromedio() : BigDecimal.ZERO)
-            .stockMinimo(dto.getStockMinimo() != null ? dto.getStockMinimo() : BigDecimal.ZERO)
-            .categoria(categoria)
-            .activo(dto.getActivo() != null ? dto.getActivo() : true)
-            .requiereSku(requiereSku)
-            .ubicacionFisica(dto.getUbicacionFisica())
-            .build();
+        BigDecimal subtotalEntrada = dto.getCantidad().multiply(dto.getCostoUnitario());
+        BigDecimal nuevoStock = stockAnterior.add(dto.getCantidad());
 
-    InventarioEntity guardado = inventarioRepository.save(nuevoProducto);
+        BigDecimal nuevoCostoPromedio = BigDecimal.ZERO;
+        if (nuevoStock.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal valorTotalNuevo = valorTotalAnterior.add(subtotalEntrada);
+            nuevoCostoPromedio = valorTotalNuevo.divide(nuevoStock, 4, RoundingMode.HALF_UP);
+        }
 
-    // Si requiere SKU y se especificó un stock inicial > 0, genera las series de inmediato
-    if (Boolean.TRUE.equals(requiereSku) && stockInicial.compareTo(BigDecimal.ZERO) > 0) {
-        generarSkusAutomaticos(guardado, stockInicial.intValue());
+        producto.setStockActual(nuevoStock);
+        producto.setCostoPromedio(nuevoCostoPromedio);
+        inventarioRepository.save(producto);
+
+        String skuParaHistorial = dto.getSku();
+        if (Boolean.TRUE.equals(producto.getRequiereSku())) {
+            if (dto.getSku() != null && !dto.getSku().isBlank()) {
+                ActivoSerieEntity activo = ActivoSerieEntity.builder()
+                        .producto(producto)
+                        .sku(dto.getSku().trim().toUpperCase())
+                        .estado(ActivoSerieEntity.EstadoActivo.DISPONIBLE)
+                        .build();
+                activoSerieRepository.save(activo);
+            } else {
+                generarSkusAutomaticos(producto, dto.getCantidad().intValue());
+                skuParaHistorial = "LOTE-AUTOGENERADO (" + dto.getCantidad().intValue() + " SKUs)";
+            }
+        }
+
+        HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
+                .articulo(producto)
+                .skuAsignado(skuParaHistorial)
+                .tipo(HistorialInventarioEntity.TipoMovimiento.ENTRADA)
+                .cantidad(dto.getCantidad())
+                .costoUnitario(dto.getCostoUnitario())
+                .subtotal(subtotalEntrada)
+                .fecha(dto.getFecha() != null ? dto.getFecha() : LocalDate.now())
+                .proveedorCliente(dto.getProveedor())
+                .area(dto.getAreaDestino())
+                .stockAnterior(stockAnterior)
+                .stockNuevo(nuevoStock)
+                .build();
+
+        historialRepository.save(historial);
+
+        return mapToResponseDTO(producto);
     }
 
-    return mapToResponseDTO(guardado);
-}
-
-@Override
-@Transactional
-public InventarioResponseDTO registrarEntrada(EntradaInventarioRequestDTO dto) {
-    InventarioEntity producto = inventarioRepository.findByIdConCategoria(dto.getArticuloId())
-            .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + dto.getArticuloId()));
-
-    BigDecimal stockAnterior = producto.getStockActual();
-    BigDecimal costoAnterior = producto.getCostoPromedio();
-    BigDecimal valorTotalAnterior = stockAnterior.multiply(costoAnterior);
-
-    BigDecimal subtotalEntrada = dto.getCantidad().multiply(dto.getCostoUnitario());
-    BigDecimal nuevoStock = stockAnterior.add(dto.getCantidad());
-
-    BigDecimal nuevoCostoPromedio = BigDecimal.ZERO;
-    if (nuevoStock.compareTo(BigDecimal.ZERO) > 0) {
-        BigDecimal valorTotalNuevo = valorTotalAnterior.add(subtotalEntrada);
-        nuevoCostoPromedio = valorTotalNuevo.divide(nuevoStock, 4, RoundingMode.HALF_UP);
-    }
-
-    producto.setStockActual(nuevoStock);
-    producto.setCostoPromedio(nuevoCostoPromedio);
-    inventarioRepository.save(producto);
-
-    // LÓGICA DE SKUs AUTOMÁTICOS EN ENTRADAS DE ALMACÉN
-    String skuParaHistorial = dto.getSku();
-    if (Boolean.TRUE.equals(producto.getRequiereSku())) {
-        if (dto.getSku() != null && !dto.getSku().isBlank()) {
-            // Si el usuario ingresó un SKU manual para 1 equipo
+    private void generarSkusAutomaticos(InventarioEntity producto, int cantidad) {
+        long correlativoActual = activoSerieRepository.countByProductoId(producto.getId());
+        for (int i = 1; i <= cantidad; i++) {
+            long numeroSerie = correlativoActual + i;
+            String skuGenerado = String.format("SKU-%s-%04d", producto.getCodigo().trim().toUpperCase(), numeroSerie);
+            
             ActivoSerieEntity activo = ActivoSerieEntity.builder()
                     .producto(producto)
-                    .sku(dto.getSku().trim().toUpperCase())
+                    .sku(skuGenerado)
                     .estado(ActivoSerieEntity.EstadoActivo.DISPONIBLE)
                     .build();
             activoSerieRepository.save(activo);
-        } else {
-            // Generación automática de SKUs para el lote de equipos que ingresa
-            generarSkusAutomaticos(producto, dto.getCantidad().intValue());
-            skuParaHistorial = "LOTE-AUTOGENERADO (" + dto.getCantidad().intValue() + " SKUs)";
         }
     }
-
-    HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
-            .articulo(producto)
-            .skuAsignado(skuParaHistorial)
-            .tipo(HistorialInventarioEntity.TipoMovimiento.ENTRADA)
-            .cantidad(dto.getCantidad())
-            .costoUnitario(dto.getCostoUnitario())
-            .subtotal(subtotalEntrada)
-            .fecha(dto.getFecha())
-            .proveedorCliente(dto.getProveedor())
-            .area(dto.getAreaDestino())
-            .stockAnterior(stockAnterior)
-            .stockNuevo(nuevoStock)
-            .build();
-
-    historialRepository.save(historial);
-
-    return mapToResponseDTO(producto);
-}
-
-// MÉTODO AUXILIAR PARA GENERACIÓN AUTOMÁTICA DE SKUs ÚNICOS
-private void generarSkusAutomaticos(InventarioEntity producto, int cantidad) {
-    long correlativoActual = activoSerieRepository.countByProductoId(producto.getId());
-    for (int i = 1; i <= cantidad; i++) {
-        long numeroSerie = correlativoActual + i;
-        String skuGenerado = String.format("SKU-%s-%04d", producto.getCodigo().trim().toUpperCase(), numeroSerie);
-        
-        ActivoSerieEntity activo = ActivoSerieEntity.builder()
-                .producto(producto)
-                .sku(skuGenerado)
-                .estado(ActivoSerieEntity.EstadoActivo.DISPONIBLE)
-                .build();
-        activoSerieRepository.save(activo);
-    }
-}
 
     @Override
-@Transactional
-public InventarioResponseDTO registrarSalida(SalidaInventarioRequestDTO dto) {
-    InventarioEntity producto = inventarioRepository.findByIdConCategoria(dto.getArticuloId())
-            .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + dto.getArticuloId()));
+    @Transactional
+    public InventarioResponseDTO registrarSalida(SalidaInventarioRequestDTO dto) {
+        InventarioEntity producto = inventarioRepository.findByIdConCategoria(dto.getArticuloId())
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado con ID: " + dto.getArticuloId()));
 
-    BigDecimal stockAnterior = producto.getStockActual() != null ? producto.getStockActual() : BigDecimal.ZERO;
-    BigDecimal nuevoStock;
+        BigDecimal stockAnterior = producto.getStockActual() != null ? producto.getStockActual() : BigDecimal.ZERO;
+        BigDecimal nuevoStock;
 
-    // LÓGICA SEGÚN TIPO DE PRODUCTO
-    if (Boolean.TRUE.equals(producto.getRequiereSku())) {
-        // Para activos con SKU (Laptops, Proyectores): 
-        // El stock actual es la cantidad real de series que permanecen DISPONIBLES
-        long seriesDisponibles = activoSerieRepository.countByProductoIdAndEstado(
-                producto.getId(), ActivoSerieEntity.EstadoActivo.DISPONIBLE);
-        nuevoStock = BigDecimal.valueOf(seriesDisponibles);
-    } else {
-        // Para insumos generales sin SKU: Se realiza la resta convencional
-        if (stockAnterior.compareTo(dto.getCantidad()) < 0) {
-            throw new IllegalArgumentException("Stock insuficiente. Stock disponible: " + stockAnterior 
-                    + ", Cantidad solicitada: " + dto.getCantidad());
+        if (Boolean.TRUE.equals(producto.getRequiereSku())) {
+            long seriesDisponibles = activoSerieRepository.countByProductoIdAndEstado(
+                    producto.getId(), ActivoSerieEntity.EstadoActivo.DISPONIBLE);
+            nuevoStock = BigDecimal.valueOf(seriesDisponibles);
+        } else {
+            if (stockAnterior.compareTo(dto.getCantidad()) < 0) {
+                throw new IllegalArgumentException("Stock insuficiente. Stock disponible: " + stockAnterior 
+                        + ", Cantidad solicitada: " + dto.getCantidad());
+            }
+            nuevoStock = stockAnterior.subtract(dto.getCantidad());
         }
-        nuevoStock = stockAnterior.subtract(dto.getCantidad());
+
+        producto.setStockActual(nuevoStock);
+        inventarioRepository.save(producto);
+
+        HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
+                .articulo(producto)
+                .skuAsignado(dto.getSku())
+                .tipo(HistorialInventarioEntity.TipoMovimiento.SALIDA)
+                .cantidad(dto.getCantidad())
+                .costoUnitario(producto.getCostoPromedio())
+                .subtotal(dto.getCantidad().multiply(producto.getCostoPromedio()))
+                .fecha(dto.getFecha() != null ? dto.getFecha() : LocalDate.now())
+                .proveedorCliente(dto.getCliente())
+                .area(dto.getAreaSolicita())
+                .stockAnterior(stockAnterior)
+                .stockNuevo(nuevoStock)
+                .build();
+
+        historialRepository.save(historial);
+
+        return mapToResponseDTO(producto);
     }
-
-    // Actualizar el stock final consolidado
-    producto.setStockActual(nuevoStock);
-    inventarioRepository.save(producto);
-
-    // Registrar el movimiento de salida en el Kardex
-    HistorialInventarioEntity historial = HistorialInventarioEntity.builder()
-            .articulo(producto)
-            .skuAsignado(dto.getSku())
-            .tipo(HistorialInventarioEntity.TipoMovimiento.SALIDA)
-            .cantidad(dto.getCantidad())
-            .costoUnitario(producto.getCostoPromedio())
-            .subtotal(dto.getCantidad().multiply(producto.getCostoPromedio()))
-            .fecha(dto.getFecha() != null ? dto.getFecha() : LocalDate.now())
-            .proveedorCliente(dto.getCliente())
-            .area(dto.getAreaSolicita())
-            .stockAnterior(stockAnterior)
-            .stockNuevo(nuevoStock)
-            .build();
-
-    historialRepository.save(historial);
-
-    return mapToResponseDTO(producto);
-}
 
     private InventarioResponseDTO mapToResponseDTO(InventarioEntity entity) {
         return InventarioResponseDTO.builder()
@@ -217,8 +227,8 @@ public InventarioResponseDTO registrarSalida(SalidaInventarioRequestDTO dto) {
                 .categoriaId(entity.getCategoria() != null ? entity.getCategoria().getId() : null)
                 .categoriaNombre(entity.getCategoria() != null ? entity.getCategoria().getNombre() : "SIN CATEGORÍA")
                 .activo(entity.getActivo())
-                .requiereSku(entity.getRequiereSku())             // <--- NUEVO
-                .ubicacionFisica(entity.getUbicacionFisica())     // <--- NUEVO
+                .requiereSku(entity.getRequiereSku())
+                .ubicacionFisica(entity.getUbicacionFisica())
                 .fechaCreacion(entity.getFechaCreacion())
                 .build();
     }
@@ -238,7 +248,7 @@ public InventarioResponseDTO registrarSalida(SalidaInventarioRequestDTO dto) {
                 .articuloId(entity.getArticulo().getId())
                 .articuloCodigo(entity.getArticulo().getCodigo())
                 .articuloDescripcion(entity.getArticulo().getDescripcion())
-                .skuAsignado(entity.getSkuAsignado()) // <--- NUEVO
+                .skuAsignado(entity.getSkuAsignado())
                 .tipo(entity.getTipo())
                 .cantidad(entity.getCantidad())
                 .costoUnitario(entity.getCostoUnitario())
@@ -275,7 +285,6 @@ public InventarioResponseDTO registrarSalida(SalidaInventarioRequestDTO dto) {
                 .collect(Collectors.toList());
     }
 
-    // <--- NUEVO MÉTODO PARA CONSULTAR LAS SERIES/SKUS DE UN PRODUCTO (LAPTOPS/PROYECTORES)
     @Override
     @Transactional(readOnly = true)
     public List<ActivoSerieDTO> obtenerSkusPorProducto(Integer productoId) {

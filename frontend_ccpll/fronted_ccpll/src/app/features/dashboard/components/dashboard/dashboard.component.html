@@ -75,8 +75,6 @@
 
   </div>
 
-
-
   <!-- BARRAS ANUALES -->
   <div class="grid mb-4">
     <div class="col-12">
@@ -89,40 +87,39 @@
     </div>
   </div>
 
- <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
 
-  <!-- GRÁFICO 1: RESUMEN DE SOLICITUDES DE PEDIDO -->
-  <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
-    <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
-      Resumen de Solicitudes de Pedido
-    </h3>
-    
-    <div style="height: 280px; position: relative; width: 100%;">
-      <p-chart 
-        type="doughnut" 
-        [data]="doughnutSolicitudesData" 
-        [options]="doughnutSolicitudesOptions" 
-        height="100%">
-      </p-chart>
+    <!-- GRÁFICO 1: RESUMEN DE SOLICITUDES DE PEDIDO -->
+    <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+      <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Resumen de Solicitudes de Pedido
+      </h3>
+      
+      <div style="height: 280px; position: relative; width: 100%;">
+        <p-chart 
+          type="doughnut" 
+          [data]="doughnutSolicitudesData" 
+          [options]="doughnutSolicitudesOptions" 
+          height="100%">
+        </p-chart>
+      </div>
     </div>
-  </div>
 
-  <!-- GRÁFICO 2: DISTRIBUCIÓN DE VALOR POR CATEGORÍA -->
-  <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
-    <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
-      Distribución de Valor por Categoría
-    </h3>
-    
-    <div style="height: 280px; position: relative; width: 100%;">
-      <p-chart 
-        type="doughnut" 
-        [data]="categoriaChartData" 
-        [options]="categoriaChartOptions" 
-        height="100%">
-      </p-chart>
+    <!-- GRÁFICO 2: DISTRIBUCIÓN DE VALOR POR CATEGORÍA -->
+    <div style="background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+      <h3 style="font-size: 1.125rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">
+        Distribución de Valor por Categoría
+      </h3>
+      
+      <div style="height: 280px; position: relative; width: 100%;">
+        <p-chart 
+          type="doughnut" 
+          [data]="categoriaChartData" 
+          [options]="categoriaChartOptions" 
+          height="100%">
+        </p-chart>
+      </div>
     </div>
-  </div>
-
 
   </div>
 
@@ -155,7 +152,7 @@
                 </span>
               </td>
               <td>{{ mov.cantidad }}</td>
-              <td>{{ mov.costo_unitario | currency:'PEN':'symbol':'1.2-2' }}</td>
+              <td>{{ mov.costoUnitario | currency:'PEN':'symbol':'1.2-2' }}</td>
               <td><strong>{{ mov.subtotal | currency:'PEN':'symbol':'1.2-2' }}</strong></td>
               <td>{{ mov.area }}</td>
             </tr>
@@ -165,5 +162,5 @@
     </div>
   </div>
 
-  </div>
+</div>
 
